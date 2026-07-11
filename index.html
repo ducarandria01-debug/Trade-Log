@@ -1140,9 +1140,16 @@ function renderDashboard(){
 }
 
 function renderChart(canvasId, type, data, options){
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  if(charts[canvasId]) charts[canvasId].destroy();
-  charts[canvasId] = new Chart(ctx, { type, data, options: {responsive:true, maintainAspectRatio:false, ...options} });
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || typeof Chart === 'undefined') return;
+  try{
+    const ctx = canvas.getContext('2d');
+    if(!ctx) return;
+    if(charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(ctx, { type, data, options: {responsive:true, maintainAspectRatio:false, ...options} });
+  }catch(err){
+    console.warn(`Graphique ${canvasId} ignoré`, err);
+  }
 }
 
 // ---------- Calendar ----------
@@ -1629,11 +1636,15 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
 });
 
 // ---------- Init ----------
-document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
-refreshStrategySelect();
-refreshAccountSelects();
-renderJournal();
-renderDashboard();
+function safeCall(label, fn){
+  try{ fn(); }
+  catch(err){ console.error(`${label} failed`, err); }
+}
+safeCall('date init', ()=>{ document.getElementById('f-date').value = new Date().toISOString().slice(0,10); });
+safeCall('strategies init', refreshStrategySelect);
+safeCall('accounts init', refreshAccountSelects);
+safeCall('journal init', renderJournal);
+safeCall('dashboard init', renderDashboard);
 </script>
 </body>
 </html>
