@@ -1,0 +1,1639 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TradeLog — Sweep / MSS / Displacement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{ --mono:'JetBrains Mono', monospace; }
+  *{ font-family:'Inter', sans-serif; }
+  .mono{ font-family:var(--mono); }
+  body{ background:#000; }
+  ::-webkit-scrollbar{width:9px; height:9px;}
+  ::-webkit-scrollbar-thumb{background:#27272a; border-radius:6px;}
+  ::-webkit-scrollbar-track{background:#000;}
+
+  /* ---- functional state classes (kept stable for JS hooks) ---- */
+  .panel{display:none;}
+  .panel.active{display:block; animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  .nav-tab{color:#a1a1aa;}
+  .nav-tab:hover{background:#18181b; color:#e4e4e7;}
+  .nav-tab.active{background:#18181b; color:#fff;}
+  .nav-tab.active .nav-dot{background:#3b82f6;}
+
+  .checklist-item{border-color:#27272a; background:#0a0a0a;}
+  .checklist-item:hover{border-color:#3f3f46;}
+  .checklist-item .checkbox{border-color:#3f3f46; background:transparent; transition:all .15s ease;}
+  .checklist-item .check-icon{opacity:0; color:#0a0704; transition:opacity .15s ease;}
+  .checklist-item.on{border-color:#f59e0b; background:rgba(245,158,11,.06);}
+  .checklist-item.on .checkbox{background:#f59e0b; border-color:#f59e0b;}
+  .checklist-item.on .check-icon{opacity:1;}
+  .checklist-item.on .title-text{color:#fbbf24;}
+
+  .confluence-mini .dot{background:#27272a;}
+  .confluence-mini .dot.on{background:#f59e0b; box-shadow:0 0 4px #f59e0b;}
+
+  .result-opt{border-color:#27272a; color:#a1a1aa; background:#0a0a0a;}
+  .result-opt.sel-Win{background:rgba(16,185,129,.1); border-color:#10b981; color:#34d399;}
+  .result-opt.sel-Loss{background:rgba(248,113,113,.1); border-color:#f87171; color:#f87171;}
+  .result-opt.sel-BE{background:#18181b; border-color:#52525b; color:#e4e4e7;}
+  .result-opt.sel-Open{background:rgba(59,130,246,.1); border-color:#3b82f6; color:#60a5fa;}
+
+  .type-opt{color:#a1a1aa; background:#0a0a0a;}
+  .type-opt.sel{background:#3b82f6; color:#fff;}
+  .theme-opt{color:#a1a1aa; background:#0a0a0a;}
+  .theme-opt.sel{background:#3b82f6; color:#fff;}
+
+  .emo-opt{border-color:#27272a; color:#a1a1aa; background:#0a0a0a;}
+  .emo-opt.sel{border-color:currentColor;}
+  .emo-Calme.sel{background:rgba(59,130,246,.1); color:#60a5fa;}
+  .emo-Discipliné.sel{background:rgba(16,185,129,.1); color:#34d399;}
+  .emo-Stressé.sel{background:rgba(248,113,113,.1); color:#f87171;}
+  .emo-FOMO.sel{background:rgba(245,158,11,.1); color:#fbbf24;}
+  .emo-Impatient.sel{background:rgba(249,115,22,.1); color:#fb923c;}
+
+  .filter-chip{border-color:#27272a; color:#a1a1aa; background:#0a0a0a;}
+  .filter-chip:hover{color:#e4e4e7;}
+  .filter-chip.active{border-color:#3b82f6; color:#60a5fa; background:rgba(59,130,246,.08);}
+
+  .badge-Win{background:rgba(16,185,129,.1); color:#34d399;}
+  .badge-Loss{background:rgba(248,113,113,.1); color:#f87171;}
+  .badge-BE{background:#27272a; color:#a1a1aa;}
+  .badge-Open{background:rgba(59,130,246,.1); color:#60a5fa;}
+  .dir-Buy{color:#34d399;}
+  .dir-Sell{color:#f87171;}
+
+  .emotion-pill-Calme{background:rgba(59,130,246,.1); color:#60a5fa;}
+  .emotion-pill-Discipliné{background:rgba(16,185,129,.1); color:#34d399;}
+  .emotion-pill-Stressé{background:rgba(248,113,113,.1); color:#f87171;}
+  .emotion-pill-FOMO{background:rgba(245,158,11,.1); color:#fbbf24;}
+  .emotion-pill-Impatient{background:rgba(249,115,22,.1); color:#fb923c;}
+
+  .cal-cell.pos{background:rgba(16,185,129,.08); border-color:rgba(16,185,129,.25);}
+  .cal-cell.pos .cal-r{color:#34d399;}
+  .cal-cell.neg{background:rgba(248,113,113,.08); border-color:rgba(248,113,113,.25);}
+  .cal-cell.neg .cal-r{color:#f87171;}
+
+  .toast{opacity:0; transform:translateY(10px); pointer-events:none; transition:all .25s ease;}
+  .toast.show{opacity:1; transform:translateY(0);}
+
+  .new-playbook-form{display:none;}
+  .new-playbook-form.show{display:block;}
+
+  input[type=file]{display:none;}
+  .field input, .field select, .field textarea{ font-family:var(--mono); }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:none; border-color:#3b82f6; }
+  .field input::placeholder, .field textarea::placeholder{ color:#52525b; }
+
+  /* ============ LIGHT THEME OVERRIDES ============ */
+  html.light-theme body{ background:#f7f7f8; }
+  html.light-theme .bg-black{ background:#f7f7f8 !important; }
+  html.light-theme .bg-black\/70{ background:rgba(0,0,0,.5) !important; }
+  html.light-theme .bg-zinc-950{ background:#ffffff !important; }
+  html.light-theme .bg-zinc-900,
+  html.light-theme .bg-zinc-900\/60,
+  html.light-theme .bg-zinc-900\/50{ background:#ffffff !important; }
+  html.light-theme .bg-zinc-800{ background:#e4e4e7 !important; }
+  html.light-theme .bg-zinc-600{ background:#a1a1aa !important; }
+  html.light-theme .border-zinc-700,
+  html.light-theme .border-zinc-800{ border-color:#e4e4e7 !important; }
+  html.light-theme .border-zinc-900{ border-color:#f0f0f1 !important; }
+  html.light-theme .text-white{ color:#18181b !important; }
+  html.light-theme .text-zinc-300{ color:#3f3f46 !important; }
+  html.light-theme .text-zinc-400{ color:#52525b !important; }
+  html.light-theme .text-zinc-500{ color:#71717a !important; }
+  html.light-theme .text-zinc-600{ color:#a1a1aa !important; }
+  html.light-theme .text-zinc-700{ color:#d4d4d8 !important; }
+  html.light-theme .hover\:bg-zinc-900:hover,
+  html.light-theme .hover\:bg-zinc-900\/50:hover{ background:#f4f4f5 !important; }
+  html.light-theme .hover\:text-white:hover{ color:#18181b !important; }
+  html.light-theme .text-emerald-400{ color:#059669 !important; }
+  html.light-theme .text-red-400{ color:#dc2626 !important; }
+  html.light-theme .text-red-400\/60{ color:#dc262699 !important; }
+  html.light-theme .text-blue-400{ color:#2563eb !important; }
+  html.light-theme .text-amber-400{ color:#b45309 !important; }
+  html.light-theme ::-webkit-scrollbar-thumb{ background:#d4d4d8; }
+  html.light-theme ::-webkit-scrollbar-track{ background:#f7f7f8; }
+
+  html.light-theme .checklist-item{ border-color:#e4e4e7; background:#fafafa; }
+  html.light-theme .checklist-item:hover{ border-color:#d4d4d8; }
+  html.light-theme .checklist-item .checkbox{ border-color:#c4c4c8; }
+  html.light-theme .checklist-item.on{ border-color:#d6a544; background:rgba(214,165,68,.08); }
+  html.light-theme .checklist-item.on .title-text{ color:#a3760f; }
+
+  html.light-theme .result-opt{ border-color:#e4e4e7; color:#71717a; background:#fafafa; }
+  html.light-theme .result-opt.sel-BE{ background:#e4e4e7; color:#18181b; }
+  html.light-theme .type-opt, html.light-theme .theme-opt{ color:#71717a; background:#fafafa; }
+  html.light-theme .emo-opt{ border-color:#e4e4e7; color:#71717a; background:#fafafa; }
+  html.light-theme .filter-chip{ border-color:#e4e4e7; color:#71717a; background:#fafafa; }
+  html.light-theme .badge-BE{ background:#e4e4e7; color:#52525b; }
+  html.light-theme .toast{ background:#ffffff; color:#18181b; }
+  html.light-theme .field input, html.light-theme .field select, html.light-theme .field textarea{ color:#18181b; }
+  html.light-theme .screenshot-drop{ color:#71717a; }
+  html.light-theme .cal-cell{ background:#fafafa !important; }
+  html.light-theme .cal-cell.empty{ background:transparent !important; }
+</style>
+</head>
+<body class="bg-black text-zinc-300">
+
+<div class="flex h-screen w-full overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="flex w-60 shrink-0 flex-col border-r border-zinc-800 bg-zinc-950 px-4 py-5">
+    <div class="flex items-center gap-2 px-2 pb-4">
+      <div class="flex h-7 w-7 items-center justify-center rounded-md bg-blue-500">
+        <svg class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
+      </div>
+      <div>
+        <div class="text-sm font-semibold text-white leading-none">TradeLog</div>
+        <div class="mono text-[10px] text-zinc-500 mt-1">sweep · mss · displacement</div>
+      </div>
+    </div>
+
+    <div class="px-0 pb-5">
+      <button id="btnConnectFile" class="w-full flex items-center justify-center gap-1.5 rounded-md bg-blue-500 px-3 py-2 text-xs font-medium text-white hover:bg-blue-400 transition-colors">🔗 Connecter un fichier local</button>
+      <div id="fileStatusWrap" class="mt-1.5 text-[10.5px] text-zinc-500 leading-snug" style="display:none;">
+        <div id="fileStatus">—</div>
+      </div>
+      <div id="fsUnsupportedNote" class="mt-1.5 text-[10.5px] text-zinc-600 leading-snug" style="display:none;">
+        Sauvegarde auto locale non supportée par ce navigateur. Utilise Chrome/Edge, ou continue avec Importer/Exporter plus bas.
+      </div>
+    </div>
+
+    <nav class="flex flex-col gap-0.5">
+      <div class="nav-tab active flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="dashboard">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Dashboard
+      </div>
+      <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="calendar">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Calendrier
+      </div>
+      <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="form">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Nouveau Trade
+      </div>
+      <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="journal">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Journal
+      </div>
+      <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="gallery">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Galerie
+      </div>
+      <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="notes">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Notes
+      </div>
+      <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="playbooks">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Playbooks
+      </div>
+    </nav>
+
+    <div class="mt-auto flex flex-col gap-2">
+      <div>
+        <label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Compte actif</label>
+        <select id="accountSelector" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-xs text-white mono mb-1.5"></select>
+        <button id="btnToggleAccountManage" class="text-[10px] text-zinc-500 hover:text-white underline decoration-dotted">Gérer les comptes</button>
+        <div class="new-playbook-form mt-2 p-2.5 rounded-md border border-dashed border-zinc-800" id="accountManagePanel">
+          <div class="flex gap-1.5 mb-2">
+            <input type="text" id="new-account-name" placeholder="Nom du compte" class="flex-1 min-w-0 rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-white">
+            <button id="btnAddAccount" class="rounded bg-blue-500 px-2.5 text-xs text-white shrink-0">+</button>
+          </div>
+          <div id="accountList" class="flex flex-col gap-1"></div>
+        </div>
+      </div>
+      <div class="theme-toggle flex rounded-md border border-zinc-800 overflow-hidden" id="themeToggle">
+        <div class="theme-opt sel flex-1 text-center px-3 py-2 mono text-xs font-medium cursor-pointer" data-val="dark">Dark</div>
+        <div class="theme-opt flex-1 text-center px-3 py-2 mono text-xs font-medium cursor-pointer border-l border-zinc-800" data-val="light">Light</div>
+      </div>
+      <button id="btnImport" class="flex items-center justify-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-400 hover:text-white transition-colors">⤒ Importer (.json)</button>
+      <input type="file" id="fileImport" accept="application/json">
+      <button id="btnImportExcel" class="flex items-center justify-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-400 hover:text-white transition-colors">📊 Importer Excel</button>
+      <input type="file" id="fileImportExcel" accept=".xlsx,.xls,.csv">
+      <button id="btnExport" class="flex items-center justify-center gap-1.5 rounded-md bg-blue-500 px-3 py-2 text-xs font-medium text-white hover:bg-blue-400 transition-colors">⤓ Sauvegarder sur le PC</button>
+      <button id="btnExportShots" class="flex items-center justify-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2 text-xs text-zinc-400 hover:text-white transition-colors">🗂 Screenshots (Win/Loss)</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="flex flex-1 flex-col overflow-hidden">
+    <header class="flex items-center justify-between border-b border-zinc-800 px-8 py-4">
+      <div>
+        <h1 id="pageTitle" class="text-lg font-semibold text-white">Dashboard</h1>
+        <p id="pageSub" class="text-xs text-zinc-500">Vue d'ensemble de ta performance</p>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto px-8 py-6">
+
+      <!-- DASHBOARD -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="grid grid-cols-4 gap-4" id="statsGrid"></div>
+
+        <div class="mt-4 grid grid-cols-3 gap-4">
+          <div class="col-span-2 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-1">Courbe d'équité (R cumulé)</h3>
+            <p class="text-xs text-zinc-500 mb-4">Évolution de ta performance, trade après trade</p>
+            <div class="h-64"><canvas id="equityChart"></canvas></div>
+          </div>
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-1">Psychologie</h3>
+            <p class="text-xs text-zinc-500 mb-3">Émotion au moment du trade</p>
+            <div class="h-40"><canvas id="emotionChart"></canvas></div>
+            <div class="mt-3 flex flex-col gap-1.5" id="emotionLegend"></div>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-4">
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-4">Sweep + MSS + Displacement vs partiel</h3>
+            <div class="h-52"><canvas id="confluenceChart"></canvas></div>
+          </div>
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-4">Winrate par DOL (type)</h3>
+            <div class="h-52"><canvas id="dolChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-4">
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-4">Plan respecté vs non respecté</h3>
+            <div class="h-52"><canvas id="planChart"></canvas></div>
+          </div>
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-4">Par paire (R)</h3>
+            <div class="h-52"><canvas id="pairChart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CALENDAR -->
+      <div class="panel" id="panel-calendar">
+        <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+          <div class="flex items-center justify-between mb-5">
+            <div class="text-base font-semibold text-white" id="calTitle"></div>
+            <div class="flex gap-2">
+              <button class="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 hover:text-white" id="calPrev">← préc.</button>
+              <button class="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 hover:text-white" id="calToday">Aujourd'hui</button>
+              <button class="rounded-md border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-400 hover:text-white" id="calNext">suiv. →</button>
+            </div>
+          </div>
+          <div class="grid grid-cols-7 gap-1.5" id="calGrid"></div>
+          <div class="flex gap-5 mt-4 text-xs text-zinc-500 items-center">
+            <span><span class="inline-block w-2.5 h-2.5 rounded-sm mr-1.5" style="background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4);"></span>Jour positif</span>
+            <span><span class="inline-block w-2.5 h-2.5 rounded-sm mr-1.5" style="background:rgba(248,113,113,.15); border:1px solid rgba(248,113,113,.4);"></span>Jour négatif</span>
+            <span><span class="inline-block w-2.5 h-2.5 rounded-sm mr-1.5 border border-zinc-800" style="background:#0a0a0a;"></span>Pas de trade</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORM -->
+      <div class="panel" id="panel-form">
+        <div class="grid gap-4">
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-3">Type</h3>
+            <div class="type-toggle flex rounded-md border border-zinc-800 overflow-hidden w-fit" id="f-type-toggle">
+              <div class="type-opt sel px-5 py-2 mono text-xs font-medium cursor-pointer" data-val="Backtest">Backtest</div>
+              <div class="type-opt px-5 py-2 mono text-xs font-medium cursor-pointer border-l border-zinc-800" data-val="Live">Live</div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-4">Contexte</h3>
+            <div class="grid grid-cols-3 gap-4 field">
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Pair</label>
+                <input type="text" id="f-pair" placeholder="NASDAQ, GBPUSD..." class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Date</label>
+                <input type="date" id="f-date" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Heure</label>
+                <input type="time" id="f-time" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Session</label>
+                <select id="f-session" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"><option>Asia</option><option>London</option><option>New York</option></select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Bias</label>
+                <select id="f-bias" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"><option>Neutre</option><option>Bearish</option><option>Bullish</option><option>IDK</option></select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Position</label>
+                <select id="f-position" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"><option value="Buy">Buy</option><option value="Sell">Sell</option></select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">DOL (type)</label>
+                <select id="f-dol" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white">
+                  <option>Buyside Liquidity</option><option>Sellside Liquidity</option><option>Untested FVG(Big)</option><option>Equal Highs</option><option>Equal Low</option><option>Zone Trap</option><option>None</option>
+                </select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">FVG timeframe</label>
+                <select id="f-fvgtf" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option></select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Compte</label>
+                <select id="f-account" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Stratégie / Playbook</label>
+                <select id="f-strategy" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></select></div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-1">Checklist d'entrée</h3>
+            <p class="text-xs text-zinc-500 mb-4">Ta route vers l'entrée, dans l'ordre</p>
+            <div class="flex flex-col gap-2" id="f-confluence">
+              <div class="checklist-item flex items-start gap-3 rounded-md border px-4 py-3 cursor-pointer transition-colors" data-key="sweep">
+                <div class="checkbox mt-0.5 h-5 w-5 shrink-0 rounded border flex items-center justify-center">
+                  <svg class="check-icon h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 10l4 4 8-8"/></svg>
+                </div>
+                <div>
+                  <div class="text-sm font-medium title-text">1. Liquidity Sweep</div>
+                  <div class="text-xs text-zinc-500 mt-0.5">J'attends que le prix aille chercher la liquidité (buyside ou sellside) avant de se retourner.</div>
+                </div>
+              </div>
+              <div class="checklist-item flex items-start gap-3 rounded-md border px-4 py-3 cursor-pointer transition-colors" data-key="mss">
+                <div class="checkbox mt-0.5 h-5 w-5 shrink-0 rounded border flex items-center justify-center">
+                  <svg class="check-icon h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 10l4 4 8-8"/></svg>
+                </div>
+                <div>
+                  <div class="text-sm font-medium title-text">2. Market Structure Shift</div>
+                  <div class="text-xs text-zinc-500 mt-0.5">J'attends la confirmation d'un changement de structure après le sweep.</div>
+                </div>
+              </div>
+              <div class="checklist-item flex items-start gap-3 rounded-md border px-4 py-3 cursor-pointer transition-colors" data-key="displacement">
+                <div class="checkbox mt-0.5 h-5 w-5 shrink-0 rounded border flex items-center justify-center">
+                  <svg class="check-icon h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 10l4 4 8-8"/></svg>
+                </div>
+                <div>
+                  <div class="text-sm font-medium title-text">3. Displacement</div>
+                  <div class="text-xs text-zinc-500 mt-0.5">J'attends un mouvement impulsif qui confirme la direction dans le sens du MSS.</div>
+                </div>
+              </div>
+              <div class="checklist-item flex items-start gap-3 rounded-md border px-4 py-3 cursor-pointer transition-colors" data-key="planRespecte">
+                <div class="checkbox mt-0.5 h-5 w-5 shrink-0 rounded border flex items-center justify-center">
+                  <svg class="check-icon h-3 w-3" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="3"><path d="M4 10l4 4 8-8"/></svg>
+                </div>
+                <div>
+                  <div class="text-sm font-medium title-text">4. Plan respecté</div>
+                  <div class="text-xs text-zinc-500 mt-0.5">J'ai suivi mon plan tel que défini, sans improviser.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-4">Résultat &amp; chiffres</h3>
+            <div class="grid grid-cols-4 gap-4">
+              <div class="field col-span-2"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Résultat</label>
+                <div class="result-picker flex rounded-md border border-zinc-800 overflow-hidden" id="f-result-picker">
+                  <div class="result-opt flex-1 text-center py-2 mono text-xs font-medium cursor-pointer" data-val="Win">Win</div>
+                  <div class="result-opt flex-1 text-center py-2 mono text-xs font-medium cursor-pointer border-l border-zinc-800" data-val="Loss">Loss</div>
+                  <div class="result-opt flex-1 text-center py-2 mono text-xs font-medium cursor-pointer border-l border-zinc-800" data-val="BE">BE</div>
+                  <div class="result-opt flex-1 text-center py-2 mono text-xs font-medium cursor-pointer border-l border-zinc-800" data-val="Open">Open</div>
+                </div></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Status</label>
+                <select id="f-status" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"><option value="">—</option><option>Closed By T/P</option><option>Closed By S/L</option><option>Closed Manually</option></select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">R multiple</label>
+                <input type="number" step="any" id="f-rmultiple" placeholder="0.00" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Max RR atteint</label>
+                <input type="number" step="any" id="f-maxrr" placeholder="0.00" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">% Risk</label>
+                <input type="number" step="any" id="f-pctrisk" placeholder="1.0" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">RR Ratio (planifié)</label>
+                <input type="number" step="any" id="f-rrratio" placeholder="0.00" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Gross PnL</label>
+                <input type="number" step="any" id="f-grosspnl" placeholder="0.00" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Commission</label>
+                <input type="number" step="any" id="f-commission" placeholder="0.00" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-4">Psychologie</h3>
+            <div class="flex gap-2 flex-wrap" id="f-emotion-picker">
+              <div class="emo-opt px-3.5 py-2 rounded-md border mono text-xs font-medium cursor-pointer emo-Calme" data-val="Calme">Calme</div>
+              <div class="emo-opt px-3.5 py-2 rounded-md border mono text-xs font-medium cursor-pointer emo-Discipliné" data-val="Discipliné">Discipliné</div>
+              <div class="emo-opt px-3.5 py-2 rounded-md border mono text-xs font-medium cursor-pointer emo-Stressé" data-val="Stressé">Stressé</div>
+              <div class="emo-opt px-3.5 py-2 rounded-md border mono text-xs font-medium cursor-pointer emo-FOMO" data-val="FOMO">FOMO</div>
+              <div class="emo-opt px-3.5 py-2 rounded-md border mono text-xs font-medium cursor-pointer emo-Impatient" data-val="Impatient">Impatient</div>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-4">Observation</h3>
+            <div class="grid grid-cols-3 gap-4">
+              <div class="field col-span-2"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Observation</label>
+                <textarea id="f-notes" placeholder="Contexte, biais HTF, ce que tu as vu sur le sweep..." class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white min-h-[76px]"></textarea></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Screenshots</label>
+                <div class="screenshot-drop rounded-md border border-dashed border-zinc-800 hover:border-blue-500 p-3 text-center text-xs text-zinc-500 cursor-pointer transition-colors" id="screenshotDrop">
+                  <div id="screenshotPlaceholder">+ Ajouter des images</div>
+                </div>
+                <input type="file" id="f-screenshot" accept="image/*" multiple>
+                <div class="grid grid-cols-3 gap-2 mt-2" id="screenshotGallery"></div>
+                </div>
+            </div>
+            <div class="flex gap-2 justify-end mt-5">
+              <button class="rounded-md border border-zinc-800 px-4 py-2 text-xs text-zinc-400 hover:text-white" id="btnCancelEdit" style="display:none;">Annuler</button>
+              <button class="rounded-md bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400" id="btnSaveTrade">Enregistrer le trade</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- JOURNAL -->
+      <div class="panel" id="panel-journal">
+        <div class="flex gap-2 flex-wrap mb-4" id="filters">
+          <div class="filter-chip active rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="all">Tous</div>
+          <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="Backtest">Backtest</div>
+          <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="Live">Live</div>
+          <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="Win">Win</div>
+          <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="Loss">Loss</div>
+          <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="full">Sweep+MSS+Displacement</div>
+          <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="planNo">Plan non respecté</div>
+        </div>
+        <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-zinc-800 text-left text-[10px] uppercase tracking-wide text-zinc-500">
+                <th class="px-4 py-3 font-medium whitespace-nowrap">Date</th><th class="px-4 py-3 font-medium whitespace-nowrap">Type</th><th class="px-4 py-3 font-medium whitespace-nowrap">Pair</th><th class="px-4 py-3 font-medium whitespace-nowrap">Pos</th><th class="px-4 py-3 font-medium whitespace-nowrap">Session</th><th class="px-4 py-3 font-medium whitespace-nowrap">DOL</th>
+                <th class="px-4 py-3 font-medium whitespace-nowrap">Confluence</th><th class="px-4 py-3 font-medium whitespace-nowrap">R</th><th class="px-4 py-3 font-medium whitespace-nowrap">Émotion</th><th class="px-4 py-3 font-medium whitespace-nowrap">Résultat</th><th class="px-4 py-3"></th><th class="px-4 py-3"></th>
+              </tr>
+            </thead>
+            <tbody id="journalBody"></tbody>
+          </table>
+          <div class="text-center py-16 text-zinc-500" id="emptyState" style="display:none;">
+            <div class="text-lg font-semibold text-white mb-2">Aucun trade enregistré</div>
+            <div class="text-sm">Ajoute ton premier trade dans l'onglet "Nouveau Trade"</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GALLERY -->
+      <div class="panel" id="panel-gallery">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex gap-2 flex-wrap" id="galleryFilters">
+            <div class="filter-chip active rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-gfilter="all">Tous</div>
+            <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-gfilter="MSS">MSS</div>
+            <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-gfilter="DOL">DOL</div>
+            <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-gfilter="FVG">FVG</div>
+            <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-gfilter="Liquidity Sweep">Liquidity Sweep</div>
+            <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-gfilter="Displacement">Displacement</div>
+            <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-gfilter="Autre">Autre</div>
+          </div>
+          <button class="rounded-md bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400 whitespace-nowrap" id="btnAddGalleryImg">+ Ajouter des images</button>
+          <input type="file" id="f-gallery-upload" accept="image/*" multiple>
+        </div>
+
+        <!-- edit form (shown when a gallery card is clicked) -->
+        <div class="new-playbook-form rounded-xl border border-blue-900/40 bg-zinc-900/60 p-5 mb-4" id="galleryEditForm">
+          <div class="grid grid-cols-3 gap-4">
+            <div class="flex flex-col gap-2">
+              <label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium">Aperçu</label>
+              <img id="ge-preview" class="w-full h-40 object-cover rounded-md border border-zinc-800">
+            </div>
+            <div class="col-span-2 grid grid-cols-2 gap-4">
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Catégorie</label>
+                <select id="ge-category" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white">
+                  <option>MSS</option><option>DOL</option><option>FVG</option><option>Liquidity Sweep</option><option>Displacement</option><option>Autre</option>
+                </select></div>
+              <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Résultat observé</label>
+                <select id="ge-outcome" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white">
+                  <option value="—">—</option><option>Souvent TP</option><option>Souvent SL</option><option>Neutre</option>
+                </select></div>
+              <div class="field col-span-2"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Description</label>
+                <textarea id="ge-desc" placeholder="Ce que tu remarques sur ce pattern..." class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white min-h-[76px]"></textarea></div>
+            </div>
+          </div>
+          <div class="flex gap-2 justify-end mt-4">
+            <button class="rounded-md border border-red-900/40 px-4 py-2 text-xs text-red-400 hover:bg-red-950/40 mr-auto" id="btnDeleteGalleryImg">Supprimer l'image</button>
+            <button class="rounded-md border border-zinc-800 px-4 py-2 text-xs text-zinc-400 hover:text-white" id="btnCancelGalleryEdit">Fermer</button>
+            <button class="rounded-md bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400" id="btnSaveGalleryImg">Enregistrer</button>
+          </div>
+        </div>
+
+        <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill, minmax(220px,1fr));" id="galleryGrid"></div>
+        <div class="text-center py-16 text-zinc-500" id="galleryEmpty" style="display:none;">
+          <div class="text-lg font-semibold text-white mb-2">Aucune image dans ta bibliothèque</div>
+          <div class="text-sm">Ajoute des exemples de MSS, DOL, FVG... pour t'entraîner à les reconnaître</div>
+        </div>
+      </div>
+
+      <!-- NOTES -->
+      <div class="panel" id="panel-notes">
+        <div class="flex justify-end mb-4">
+          <button class="rounded-md bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400" id="btnNewNote">+ Nouvelle note</button>
+        </div>
+        <div class="new-playbook-form rounded-xl border border-dashed border-zinc-800 p-5 mb-4" id="newNoteForm">
+          <div class="field mb-4"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Titre</label>
+            <input type="text" id="note-title" placeholder="Ex: Règles de gestion du risque" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+          <div class="field mb-4"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Contenu</label>
+            <textarea id="note-content" placeholder="Écris librement ici..." class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white min-h-[140px]"></textarea></div>
+          <div class="flex gap-2 justify-end">
+            <button class="rounded-md border border-zinc-800 px-4 py-2 text-xs text-zinc-400 hover:text-white" id="btnCancelNote">Annuler</button>
+            <button class="rounded-md bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400" id="btnSaveNote">Enregistrer la note</button>
+          </div>
+        </div>
+        <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill, minmax(260px,1fr));" id="notesGrid"></div>
+        <div class="text-center py-16 text-zinc-500" id="notesEmpty" style="display:none;">
+          <div class="text-lg font-semibold text-white mb-2">Aucune note</div>
+          <div class="text-sm">Utilise cet espace pour tes règles, réflexions, ou tout ce que tu veux garder sous la main</div>
+        </div>
+      </div>
+
+      <!-- PLAYBOOKS -->
+      <div class="panel" id="panel-playbooks">
+        <div class="flex justify-end mb-4">
+          <button class="rounded-md bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400" id="btnNewPlaybook">+ Nouveau playbook</button>
+        </div>
+        <div class="new-playbook-form rounded-xl border border-dashed border-zinc-800 p-5 mb-4" id="newPlaybookForm">
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Nom de la stratégie</label>
+              <input type="text" id="pb-name" placeholder="Ex: Sweep Asie + MSS Londres" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+            <div class="field"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Description / règles</label>
+              <input type="text" id="pb-desc" placeholder="Critères d'entrée, contexte, règles" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"></div>
+          </div>
+          <div class="flex gap-2 justify-end">
+            <button class="rounded-md border border-zinc-800 px-4 py-2 text-xs text-zinc-400 hover:text-white" id="btnCancelPlaybook">Annuler</button>
+            <button class="rounded-md bg-blue-500 px-4 py-2 text-xs font-medium text-white hover:bg-blue-400" id="btnSavePlaybook">Créer le playbook</button>
+          </div>
+        </div>
+        <div class="grid gap-4" style="grid-template-columns:repeat(auto-fill, minmax(260px,1fr));" id="playbookGrid"></div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast fixed bottom-7 right-7 rounded-lg border border-blue-500 bg-zinc-950 px-4 py-3 text-sm text-white shadow-2xl max-w-xs z-50" id="toast"></div>
+
+<script>
+let trades = [];
+let playbooks = [
+  { id:'default-sweep-mss-disp', name:'Sweep + MSS + Displacement', desc:'Setup principal : sweep de liquidité, changement de structure confirmé, puis displacement dans le sens du nouveau biais.' }
+];
+let editingId = null;
+let editingPlaybookId = null;
+let accounts = [{ id:'default', name:'Compte principal' }];
+let currentAccount = 'all';
+let fileHandle = null;
+let autoSaveTimer = null;
+const fsApiSupported = 'showSaveFilePicker' in window;
+let notes = [];
+let editingNoteId = null;
+let galleryItems = [];
+let editingGalleryId = null;
+let currentGalleryFilter = 'all';
+let currentFilter = 'all';
+let currentTheme = 'dark';
+let currentResult = null;
+let currentType = 'Backtest';
+let currentEmotion = null;
+let currentConfluence = { sweep:false, mss:false, displacement:false, planRespecte:false };
+let currentScreenshots = [];
+let charts = {};
+let calDate = new Date();
+
+const pageTitles = {
+  dashboard: ['Dashboard', "Vue d'ensemble de ta performance"],
+  calendar: ['Calendrier', 'Ta performance jour par jour'],
+  form: ['Nouveau Trade', 'Enregistre un trade backtest ou live'],
+  journal: ['Journal', 'Historique complet de tes trades'],
+  gallery: ['Galerie', 'Bibliothèque visuelle de tes patterns (MSS, DOL, FVG...)'],
+  notes: ['Notes', 'Ton espace libre'],
+  playbooks: ['Playbooks', 'Tes stratégies et leurs statistiques']
+};
+
+// ---------- Navigation ----------
+document.querySelectorAll('.nav-tab').forEach(tab=>{
+  tab.addEventListener('click', ()=> goToTab(tab.dataset.tab));
+});
+function goToTab(name){
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
+  document.getElementById('pageTitle').textContent = pageTitles[name][0];
+  document.getElementById('pageSub').textContent = pageTitles[name][1];
+  if(name==='dashboard') renderDashboard();
+  if(name==='journal') renderJournal();
+  if(name==='calendar') renderCalendar();
+  if(name==='playbooks') renderPlaybooks();
+  if(name==='gallery') renderGallery();
+  if(name==='notes') renderNotes();
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// ---------- Local file auto-save (File System Access API) ----------
+if(!fsApiSupported){
+  document.getElementById('fsUnsupportedNote').style.display = 'block';
+  document.getElementById('btnConnectFile').style.display = 'none';
+}
+
+function scheduleAutoSave(){
+  if(!fileHandle) return;
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(writeToConnectedFile, 400);
+}
+
+async function writeToConnectedFile(){
+  if(!fileHandle) return;
+  try{
+    const payload = { trades, playbooks, notes, galleryItems, accounts };
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(payload, null, 2));
+    await writable.close();
+    const el = document.getElementById('fileStatus');
+    if(el) el.innerHTML = `🔗 <span class="text-emerald-400">${fileHandle.name}</span><br>sauvegardé automatiquement`;
+  }catch(err){
+    console.error('Auto-save failed', err);
+    const el = document.getElementById('fileStatus');
+    if(el) el.innerHTML = `🔗 <span class="text-red-400">${fileHandle.name}</span><br>échec de la sauvegarde — reconnecte`;
+  }
+}
+
+document.getElementById('btnConnectFile').addEventListener('click', async ()=>{
+  try{
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'journal-trading-data.json',
+      types: [{ description:'Journal JSON', accept:{ 'application/json':['.json'] } }]
+    });
+
+    let existing = null;
+    try{
+      const file = await handle.getFile();
+      const text = await file.text();
+      if(text && text.trim()) existing = JSON.parse(text);
+    }catch(readErr){ /* empty or brand-new file, nothing to load */ }
+
+    if(existing && Array.isArray(existing.trades) && existing.trades.length){
+      const loadIt = confirm(`Ce fichier contient déjà ${existing.trades.length} trade(s).\n\nOK = charger ces données dans l'outil\nAnnuler = garder ce qui est affiché à l'écran (le fichier sera écrasé avec ça)`);
+      if(loadIt){
+        trades = existing.trades.map(t=>({
+          ...t,
+          account: t.account || 'default',
+          screenshots: t.screenshots ? t.screenshots : (t.screenshot ? [t.screenshot] : [])
+        }));
+        if(existing.playbooks && existing.playbooks.length) playbooks = existing.playbooks;
+        if(existing.notes) notes = existing.notes;
+        if(existing.galleryItems) galleryItems = existing.galleryItems;
+        if(existing.accounts && existing.accounts.length) accounts = existing.accounts;
+        refreshStrategySelect();
+      }
+    }
+
+    fileHandle = handle;
+    document.getElementById('fileStatusWrap').style.display = 'block';
+    document.getElementById('btnConnectFile').textContent = '🔗 Changer de fichier';
+    refreshAccountSelects();
+    goToTab('dashboard');
+    await writeToConnectedFile();
+    toast(`Connecté à ${handle.name} — sauvegarde automatique activée`);
+  }catch(err){
+    if(err.name !== 'AbortError'){ console.error(err); toast("Connexion au fichier annulée ou impossible"); }
+  }
+});
+
+function chartGridColor(){ return currentTheme==='light' ? '#e4e4e7' : '#18181b'; }
+function chartTickColor(){ return currentTheme==='light' ? '#71717a' : '#71717a'; }
+
+document.getElementById('themeToggle').addEventListener('click', e=>{
+  const opt = e.target.closest('.theme-opt');
+  if(!opt) return;
+  currentTheme = opt.dataset.val;
+  document.documentElement.classList.toggle('light-theme', currentTheme==='light');
+  document.querySelectorAll('.theme-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val===currentTheme));
+  if(document.getElementById('panel-dashboard').classList.contains('active')) renderDashboard();
+});
+
+function refreshStrategySelect(){
+  const sel = document.getElementById('f-strategy');
+  const prev = sel.value;
+  sel.innerHTML = playbooks.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  if(playbooks.some(p=>p.id===prev)) sel.value = prev;
+}
+
+// ---------- Accounts ----------
+function getVisibleTrades(){
+  return currentAccount==='all' ? trades : trades.filter(t=>(t.account||'default')===currentAccount);
+}
+
+function refreshAccountSelects(){
+  scheduleAutoSave();
+  const sidebarSel = document.getElementById('accountSelector');
+  const prevSidebar = sidebarSel.value || currentAccount;
+  sidebarSel.innerHTML = '<option value="all">Tous les comptes</option>' + accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  sidebarSel.value = accounts.some(a=>a.id===prevSidebar) || prevSidebar==='all' ? prevSidebar : 'all';
+  currentAccount = sidebarSel.value;
+
+  const formSel = document.getElementById('f-account');
+  const prevForm = formSel.value;
+  formSel.innerHTML = accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  formSel.value = accounts.some(a=>a.id===prevForm) ? prevForm : (currentAccount!=='all' ? currentAccount : accounts[0].id);
+
+  renderAccountList();
+}
+
+function renderAccountList(){
+  document.getElementById('accountList').innerHTML = accounts.map(a=>`
+    <div class="flex items-center justify-between text-xs px-1.5 py-1 rounded hover:bg-zinc-900">
+      <span class="text-zinc-300">${a.name}</span>
+      <span class="text-red-400/60 hover:text-red-400 cursor-pointer text-[10px]" onclick="deleteAccount('${a.id}')">supprimer</span>
+    </div>
+  `).join('');
+}
+
+document.getElementById('accountSelector').addEventListener('change', e=>{
+  currentAccount = e.target.value;
+  const activePanel = document.querySelector('.panel.active');
+  if(activePanel){
+    const name = activePanel.id.replace('panel-','');
+    if(name==='dashboard') renderDashboard();
+    if(name==='journal') renderJournal();
+    if(name==='calendar') renderCalendar();
+    if(name==='playbooks') renderPlaybooks();
+  }
+});
+
+document.getElementById('btnToggleAccountManage').addEventListener('click', ()=>{
+  document.getElementById('accountManagePanel').classList.toggle('show');
+});
+
+document.getElementById('btnAddAccount').addEventListener('click', ()=>{
+  const input = document.getElementById('new-account-name');
+  const name = input.value.trim();
+  if(!name){ toast('Donne un nom à ce compte'); return; }
+  accounts.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), name });
+  input.value = '';
+  refreshAccountSelects();
+  toast('Compte ajouté');
+});
+document.getElementById('new-account-name').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('btnAddAccount').click();
+});
+
+function deleteAccount(id){
+  if(accounts.length<=1){ toast('Garde au moins un compte'); return; }
+  if(!confirm('Supprimer ce compte ? Les trades qui lui sont liés resteront visibles dans "Tous les comptes".')) return;
+  accounts = accounts.filter(a=>a.id!==id);
+  if(currentAccount===id) currentAccount = 'all';
+  refreshAccountSelects();
+  toast('Compte supprimé');
+}
+
+// ---------- Form: type toggle ----------
+document.getElementById('f-type-toggle').addEventListener('click', e=>{
+  const opt = e.target.closest('.type-opt');
+  if(!opt) return;
+  currentType = opt.dataset.val;
+  document.querySelectorAll('.type-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val===currentType));
+});
+
+// ---------- Form: result picker ----------
+document.getElementById('f-result-picker').addEventListener('click', e=>{
+  const opt = e.target.closest('.result-opt');
+  if(!opt) return;
+  currentResult = opt.dataset.val;
+  document.querySelectorAll('.result-opt').forEach(o=>{
+    o.className = o.className.replace(/ sel-\w+/g,'') + (o.dataset.val===currentResult ? ' sel-'+currentResult : '');
+  });
+});
+
+// ---------- Form: emotion picker ----------
+document.getElementById('f-emotion-picker').addEventListener('click', e=>{
+  const opt = e.target.closest('.emo-opt');
+  if(!opt) return;
+  currentEmotion = (currentEmotion === opt.dataset.val) ? null : opt.dataset.val;
+  document.querySelectorAll('.emo-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val===currentEmotion));
+});
+
+// ---------- Form: confluence toggles ----------
+document.getElementById('f-confluence').addEventListener('click', e=>{
+  const item = e.target.closest('.checklist-item');
+  if(!item) return;
+  const key = item.dataset.key;
+  currentConfluence[key] = !currentConfluence[key];
+  item.classList.toggle('on', currentConfluence[key]);
+});
+
+// ---------- Form: screenshot ----------
+document.getElementById('screenshotDrop').addEventListener('click', ()=>{
+  document.getElementById('f-screenshot').click();
+});
+document.getElementById('f-screenshot').addEventListener('change', e=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  let pending = files.length;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      currentScreenshots.push(ev.target.result);
+      pending--;
+      if(pending===0) renderScreenshotGallery();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+});
+
+function renderScreenshotGallery(){
+  const gallery = document.getElementById('screenshotGallery');
+  gallery.innerHTML = currentScreenshots.map((src, i)=>`
+    <div class="relative group">
+      <img src="${src}" class="w-full h-20 object-cover rounded-md border border-zinc-800">
+      <button onclick="removeScreenshot(${i})" class="absolute top-1 right-1 h-5 w-5 flex items-center justify-center rounded-full bg-black/70 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+    </div>
+  `).join('');
+  document.getElementById('screenshotPlaceholder').textContent = currentScreenshots.length ? `+ Ajouter (${currentScreenshots.length} image${currentScreenshots.length>1?'s':''})` : '+ Ajouter des images';
+}
+function removeScreenshot(i){
+  currentScreenshots.splice(i,1);
+  renderScreenshotGallery();
+}
+
+// ---------- Save trade ----------
+document.getElementById('btnSaveTrade').addEventListener('click', ()=>{
+  const pair = document.getElementById('f-pair').value.trim();
+  const date = document.getElementById('f-date').value;
+  if(!pair || !date){ toast('Ajoute au moins une date et une paire'); return; }
+
+  const commission = parseFloat(document.getElementById('f-commission').value) || 0;
+  const grossPnl = document.getElementById('f-grosspnl').value !== '' ? parseFloat(document.getElementById('f-grosspnl').value) : null;
+  const netPnl = grossPnl!=null ? (grossPnl - commission) : null;
+
+  const trade = {
+    id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2,7)),
+    type: currentType,
+    account: document.getElementById('f-account').value,
+    pair, date,
+    time: document.getElementById('f-time').value,
+    session: document.getElementById('f-session').value,
+    bias: document.getElementById('f-bias').value,
+    position: document.getElementById('f-position').value,
+    dol: document.getElementById('f-dol').value,
+    fvgTf: document.getElementById('f-fvgtf').value,
+    strategy: document.getElementById('f-strategy').value,
+    result: currentResult || 'Open',
+    status: document.getElementById('f-status').value,
+    rMultiple: document.getElementById('f-rmultiple').value !== '' ? parseFloat(document.getElementById('f-rmultiple').value) : null,
+    maxRR: document.getElementById('f-maxrr').value !== '' ? parseFloat(document.getElementById('f-maxrr').value) : null,
+    pctRisk: document.getElementById('f-pctrisk').value !== '' ? parseFloat(document.getElementById('f-pctrisk').value) : null,
+    rrRatio: document.getElementById('f-rrratio').value !== '' ? parseFloat(document.getElementById('f-rrratio').value) : null,
+    grossPnl, commission, netPnl,
+    emotion: currentEmotion,
+    confluence: {...currentConfluence},
+    notes: document.getElementById('f-notes').value.trim(),
+    screenshots: [...currentScreenshots]
+  };
+
+  if(editingId){
+    const idx = trades.findIndex(t=>t.id===editingId);
+    trades[idx] = trade;
+    toast('Trade mis à jour');
+  } else {
+    trades.push(trade);
+    toast('Trade enregistré — pense à sauvegarder sur ton PC');
+  }
+  resetForm();
+  goToTab('journal');
+});
+
+document.getElementById('btnCancelEdit').addEventListener('click', ()=>{
+  resetForm();
+  goToTab('journal');
+});
+
+function resetForm(){
+  editingId = null;
+  document.getElementById('btnCancelEdit').style.display = 'none';
+  ['f-pair','f-rmultiple','f-maxrr','f-pctrisk','f-rrratio','f-grosspnl','f-commission','f-notes'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-time').value = '';
+  document.getElementById('f-session').value = 'London';
+  document.getElementById('f-bias').value = 'Neutre';
+  document.getElementById('f-position').value = 'Buy';
+  document.getElementById('f-dol').value = 'Buyside Liquidity';
+  document.getElementById('f-fvgtf').value = 'M5';
+  document.getElementById('f-status').value = '';
+  refreshStrategySelect();
+  document.getElementById('f-account').value = currentAccount!=='all' ? currentAccount : accounts[0].id;
+  currentType = 'Backtest';
+  document.querySelectorAll('.type-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val==='Backtest'));
+  currentResult = null;
+  document.querySelectorAll('.result-opt').forEach(o=>{ o.className = o.className.replace(/ sel-\w+/g,''); });
+  currentEmotion = null;
+  document.querySelectorAll('.emo-opt').forEach(o=>o.classList.remove('sel'));
+  currentConfluence = { sweep:false, mss:false, displacement:false, planRespecte:false };
+  document.querySelectorAll('.checklist-item').forEach(c=>c.classList.remove('on'));
+  currentScreenshots = [];
+  renderScreenshotGallery();
+  document.getElementById('f-screenshot').value = '';
+}
+
+function loadTradeIntoForm(id){
+  const t = trades.find(x=>x.id===id);
+  if(!t) return;
+  editingId = id;
+  document.getElementById('btnCancelEdit').style.display = 'inline-flex';
+  document.getElementById('f-pair').value = t.pair;
+  document.getElementById('f-date').value = t.date;
+  document.getElementById('f-time').value = t.time || '';
+  document.getElementById('f-session').value = t.session;
+  document.getElementById('f-bias').value = t.bias;
+  document.getElementById('f-position').value = t.position;
+  document.getElementById('f-dol').value = t.dol;
+  document.getElementById('f-fvgtf').value = t.fvgTf;
+  refreshStrategySelect();
+  document.getElementById('f-account').value = t.account || accounts[0].id;
+  document.getElementById('f-strategy').value = t.strategy || playbooks[0].id;
+  document.getElementById('f-status').value = t.status || '';
+  document.getElementById('f-rmultiple').value = t.rMultiple ?? '';
+  document.getElementById('f-maxrr').value = t.maxRR ?? '';
+  document.getElementById('f-pctrisk').value = t.pctRisk ?? '';
+  document.getElementById('f-rrratio').value = t.rrRatio ?? '';
+  document.getElementById('f-grosspnl').value = t.grossPnl ?? '';
+  document.getElementById('f-commission').value = t.commission ?? '';
+  document.getElementById('f-notes').value = t.notes || '';
+
+  currentType = t.type || 'Backtest';
+  document.querySelectorAll('.type-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val===currentType));
+  currentResult = t.result;
+  document.querySelectorAll('.result-opt').forEach(o=>{ o.className = o.className.replace(/ sel-\w+/g,'') + (o.dataset.val===currentResult ? ' sel-'+currentResult : ''); });
+  currentEmotion = t.emotion || null;
+  document.querySelectorAll('.emo-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val===currentEmotion));
+  currentConfluence = {...t.confluence};
+  document.querySelectorAll('.checklist-item').forEach(c=>c.classList.toggle('on', currentConfluence[c.dataset.key]));
+  currentScreenshots = t.screenshots ? [...t.screenshots] : (t.screenshot ? [t.screenshot] : []);
+  renderScreenshotGallery();
+  goToTab('form');
+}
+
+function deleteTrade(id, ev){
+  ev.stopPropagation();
+  if(!confirm('Supprimer ce trade ?')) return;
+  trades = trades.filter(t=>t.id!==id);
+  renderJournal();
+  toast('Trade supprimé');
+}
+
+function strategyName(id){
+  const p = playbooks.find(p=>p.id===id);
+  return p ? p.name : '—';
+}
+
+// ---------- Journal rendering ----------
+document.getElementById('filters').addEventListener('click', e=>{
+  const chip = e.target.closest('.filter-chip');
+  if(!chip) return;
+  currentFilter = chip.dataset.filter;
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.toggle('active', c===chip));
+  renderJournal();
+});
+
+function renderJournal(){
+  scheduleAutoSave();
+  let list = [...getVisibleTrades()].sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(currentFilter==='Win'||currentFilter==='Loss') list = list.filter(t=>t.result===currentFilter);
+  if(currentFilter==='Backtest'||currentFilter==='Live') list = list.filter(t=>t.type===currentFilter);
+  if(currentFilter==='full') list = list.filter(t=>t.confluence.sweep && t.confluence.mss && t.confluence.displacement);
+  if(currentFilter==='planNo') list = list.filter(t=>!t.confluence.planRespecte);
+
+  const body = document.getElementById('journalBody');
+  body.innerHTML = '';
+  document.getElementById('emptyState').style.display = list.length ? 'none' : 'block';
+
+  list.forEach(t=>{
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-zinc-900 last:border-0 cursor-pointer hover:bg-zinc-900/50 transition-colors';
+    tr.addEventListener('click', ()=>loadTradeIntoForm(t.id));
+    tr.innerHTML = `
+      <td class="px-4 py-3 mono text-xs text-zinc-400 whitespace-nowrap">${t.date}</td>
+      <td class="px-4 py-3 whitespace-nowrap"><span class="mono text-[10px] px-2 py-0.5 rounded border border-zinc-800 text-zinc-500">${t.type}</span></td>
+      <td class="px-4 py-3 mono text-xs font-medium text-white whitespace-nowrap">${t.pair}</td>
+      <td class="px-4 py-3 mono text-xs font-medium dir-${t.position} whitespace-nowrap">${t.position}</td>
+      <td class="px-4 py-3 mono text-xs text-zinc-400 whitespace-nowrap">${t.session}</td>
+      <td class="px-4 py-3 text-[11px] text-zinc-500 whitespace-nowrap">${t.dol}</td>
+      <td class="px-4 py-3 whitespace-nowrap"><div class="confluence-mini flex gap-1 items-center">
+        <div class="dot h-1.5 w-1.5 rounded-full ${t.confluence.sweep?'on':''}" title="Sweep"></div>
+        <div class="dot h-1.5 w-1.5 rounded-full ${t.confluence.mss?'on':''}" title="MSS"></div>
+        <div class="dot h-1.5 w-1.5 rounded-full ${t.confluence.displacement?'on':''}" title="Displacement"></div>
+      </div></td>
+      <td class="px-4 py-3 mono text-xs whitespace-nowrap">${t.rMultiple!=null ? (t.rMultiple>0?'+':'')+t.rMultiple.toFixed(2)+'R' : '—'}</td>
+      <td class="px-4 py-3 whitespace-nowrap">${t.emotion ? `<span class="rounded-full px-2 py-0.5 text-[11px] font-medium emotion-pill-${t.emotion}">${t.emotion}</span>` : '<span class="text-zinc-700">—</span>'}</td>
+      <td class="px-4 py-3 whitespace-nowrap"><span class="badge badge-${t.result} mono text-[10px] font-bold px-2 py-0.5 rounded-full">${t.result}</span></td>
+      <td class="px-4 py-3 whitespace-nowrap">${(t.screenshots&&t.screenshots.length) ? `<span class="mono text-[10px] text-zinc-500">🖼 ${t.screenshots.length}</span>` : ''}</td>
+      <td class="px-4 py-3 whitespace-nowrap"><span class="row-del text-red-400/60 hover:text-red-400 text-xs cursor-pointer" onclick="deleteTrade('${t.id}', event)">supprimer</span></td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+// ---------- Dashboard ----------
+function statCardHTML(label, value, accentBg, accentText, sub){
+  return `
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
+      <div class="flex items-start justify-between">
+        <span class="text-[11px] font-medium uppercase tracking-wide text-zinc-500">${label}</span>
+        <div class="flex h-6 w-6 items-center justify-center rounded-md ${accentBg}">
+          <span class="h-1.5 w-1.5 rounded-full ${accentText}" style="background:currentColor;"></span>
+        </div>
+      </div>
+      <div class="mt-2.5 flex items-baseline gap-2">
+        <span class="text-2xl font-semibold text-white tracking-tight mono">${value}</span>
+        ${sub ? `<span class="text-xs text-zinc-500">${sub}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderDashboard(){
+  scheduleAutoSave();
+  const visible = getVisibleTrades();
+  const closed = visible.filter(t=>t.result==='Win'||t.result==='Loss'||t.result==='BE');
+  const wins = closed.filter(t=>t.result==='Win');
+  const losses = closed.filter(t=>t.result==='Loss');
+  const winrate = closed.length ? (wins.length/closed.length*100) : 0;
+  const rValues = closed.filter(t=>t.rMultiple!=null).map(t=>t.rMultiple);
+  const totalR = rValues.reduce((a,b)=>a+b,0);
+  const totalPnl = closed.filter(t=>t.netPnl!=null).reduce((s,t)=>s+t.netPnl,0);
+  const planYes = closed.filter(t=>t.confluence.planRespecte).length;
+  const planRate = closed.length ? (planYes/closed.length*100) : 0;
+
+  const grossWin = wins.reduce((s,t)=> s + (t.netPnl>0?t.netPnl:0), 0);
+  const grossLoss = Math.abs(losses.reduce((s,t)=> s + (t.netPnl<0?t.netPnl:0), 0));
+  const profitFactor = grossLoss>0 ? (grossWin/grossLoss) : (grossWin>0 ? Infinity : 0);
+
+  const sortedForDD = [...closed].filter(t=>t.rMultiple!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  let cumDD=0, peak=0, maxDD=0;
+  sortedForDD.forEach(t=>{ cumDD += t.rMultiple; if(cumDD>peak) peak=cumDD; const dd = peak-cumDD; if(dd>maxDD) maxDD=dd; });
+
+  document.getElementById('statsGrid').innerHTML =
+    statCardHTML('Profit total (net)', (totalPnl>=0?'+':'')+'$'+totalPnl.toFixed(0), 'bg-emerald-500/10', 'text-emerald-400') +
+    statCardHTML('Win rate', winrate.toFixed(0)+'%', 'bg-blue-500/10', 'text-blue-400') +
+    statCardHTML('Facteur de profit', isFinite(profitFactor)?profitFactor.toFixed(2):'∞', 'bg-blue-500/10', 'text-blue-400') +
+    statCardHTML('Max drawdown', '-'+maxDD.toFixed(2)+'R', 'bg-red-500/10', 'text-red-400');
+
+  let secondRow = document.getElementById('statsGrid2');
+  if(!secondRow){
+    secondRow = document.createElement('div');
+    secondRow.id = 'statsGrid2';
+    secondRow.className = 'grid grid-cols-4 gap-4 mt-4';
+    document.getElementById('statsGrid').insertAdjacentElement('afterend', secondRow);
+  }
+  secondRow.innerHTML =
+    statCardHTML('R cumulé', (totalR>=0?'+':'')+totalR.toFixed(2)+'R', 'bg-zinc-800', 'text-zinc-400') +
+    statCardHTML('Plan respecté', planRate.toFixed(0)+'%', 'bg-amber-500/10', 'text-amber-400') +
+    statCardHTML('Trades total', String(visible.length), 'bg-zinc-800', 'text-zinc-400') +
+    statCardHTML('Trades clôturés', String(closed.length), 'bg-zinc-800', 'text-zinc-400');
+
+  const sorted = [...closed].filter(t=>t.rMultiple!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  let cum = 0;
+  const equityData = sorted.map(t=>{ cum += t.rMultiple; return cum; });
+  renderChart('equityChart', 'line', {
+    labels: sorted.map((t,i)=>i+1),
+    datasets:[{ label:'R cumulé', data: equityData, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.08)', fill:true, tension:.3, pointRadius:0, borderWidth:2 }]
+  }, { scales:{ y:{ grid:{color:chartGridColor()}, ticks:{color:chartTickColor()} }, x:{ grid:{display:false}, ticks:{color:chartTickColor()} } }, plugins:{legend:{display:false}} });
+
+  const emoColors = { 'Calme':'#3b82f6', 'Discipliné':'#10b981', 'Stressé':'#f87171', 'FOMO':'#f59e0b', 'Impatient':'#f97316' };
+  const emoMap = {};
+  visible.forEach(t=>{ if(t.emotion) emoMap[t.emotion] = (emoMap[t.emotion]||0)+1; });
+  const emoLabels = Object.keys(emoMap);
+  if(emoLabels.length){
+    renderChart('emotionChart', 'doughnut', {
+      labels: emoLabels,
+      datasets:[{ data: emoLabels.map(l=>emoMap[l]), backgroundColor: emoLabels.map(l=>emoColors[l]), borderWidth:0 }]
+    }, { plugins:{legend:{display:false}}, cutout:'65%' });
+    document.getElementById('emotionLegend').innerHTML = emoLabels.map(l=>{
+      const pct = (emoMap[l]/visible.filter(t=>t.emotion).length*100).toFixed(0);
+      return `<div class="flex items-center justify-between text-xs"><div class="flex items-center gap-2"><span class="h-2 w-2 rounded-full" style="background:${emoColors[l]}"></span><span class="text-zinc-400">${l}</span></div><span class="font-medium text-zinc-300">${pct}%</span></div>`;
+    }).join('');
+  } else {
+    if(charts['emotionChart']) charts['emotionChart'].destroy();
+    document.getElementById('emotionLegend').innerHTML = '<div class="text-xs text-zinc-600">Ajoute une émotion à tes trades pour voir apparaître ce graphique.</div>';
+  }
+
+  const full = closed.filter(t=>t.confluence.sweep&&t.confluence.mss&&t.confluence.displacement);
+  const partial = closed.filter(t=>!(t.confluence.sweep&&t.confluence.mss&&t.confluence.displacement));
+  const wr = arr => arr.length ? (arr.filter(t=>t.result==='Win').length/arr.length*100) : 0;
+  renderChart('confluenceChart', 'bar', {
+    labels:['Sweep+MSS+Disp.', 'Confluence partielle'],
+    datasets:[{ data:[wr(full), wr(partial)], backgroundColor:['#f59e0b','#3f3f46'], borderRadius:4 }]
+  }, { scales:{ y:{ min:0, max:100, grid:{color:chartGridColor()}, ticks:{color:chartTickColor(), callback:v=>v+'%'} }, x:{ grid:{display:false}, ticks:{color:chartTickColor()} } }, plugins:{legend:{display:false}} });
+
+  const dolMap = {};
+  closed.forEach(t=>{ if(!dolMap[t.dol]) dolMap[t.dol] = []; dolMap[t.dol].push(t); });
+  renderChart('dolChart', 'bar', {
+    labels: Object.keys(dolMap),
+    datasets:[{ data: Object.values(dolMap).map(arr=>wr(arr)), backgroundColor:'#3b82f6', borderRadius:4 }]
+  }, { indexAxis:'y', scales:{ x:{ min:0, max:100, grid:{color:chartGridColor()}, ticks:{color:chartTickColor(), callback:v=>v+'%'} }, y:{ grid:{display:false}, ticks:{color:chartTickColor(), font:{size:10.5}} } }, plugins:{legend:{display:false}} });
+
+  const planYesArr = closed.filter(t=>t.confluence.planRespecte);
+  const planNoArr = closed.filter(t=>!t.confluence.planRespecte);
+  renderChart('planChart', 'bar', {
+    labels:['Plan respecté', 'Plan non respecté'],
+    datasets:[{ data:[wr(planYesArr), wr(planNoArr)], backgroundColor:['#10b981','#f87171'], borderRadius:4 }]
+  }, { scales:{ y:{ min:0, max:100, grid:{color:chartGridColor()}, ticks:{color:chartTickColor(), callback:v=>v+'%'} }, x:{ grid:{display:false}, ticks:{color:chartTickColor()} } }, plugins:{legend:{display:false}} });
+
+  const pairMap = {};
+  closed.forEach(t=>{ pairMap[t.pair] = (pairMap[t.pair]||0) + (t.rMultiple||0); });
+  renderChart('pairChart', 'bar', {
+    labels: Object.keys(pairMap),
+    datasets:[{ data: Object.values(pairMap), backgroundColor: Object.values(pairMap).map(v=>v>=0?'#10b981':'#f87171'), borderRadius:4 }]
+  }, { indexAxis:'y', scales:{ x:{ grid:{color:chartGridColor()}, ticks:{color:chartTickColor()} }, y:{ grid:{display:false}, ticks:{color:chartTickColor()} } }, plugins:{legend:{display:false}} });
+}
+
+function renderChart(canvasId, type, data, options){
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(ctx, { type, data, options: {responsive:true, maintainAspectRatio:false, ...options} });
+}
+
+// ---------- Calendar ----------
+document.getElementById('calPrev').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
+document.getElementById('calNext').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
+document.getElementById('calToday').addEventListener('click', ()=>{ calDate = new Date(); renderCalendar(); });
+
+function renderCalendar(){
+  scheduleAutoSave();
+  const year = calDate.getFullYear(), month = calDate.getMonth();
+  const monthNames = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  document.getElementById('calTitle').textContent = `${monthNames[month]} ${year}`;
+
+  const dayMap = {};
+  getVisibleTrades().forEach(t=>{
+    if(t.rMultiple==null) return;
+    const d = new Date(t.date);
+    if(d.getFullYear()===year && d.getMonth()===month){
+      const key = d.getDate();
+      if(!dayMap[key]) dayMap[key] = { r:0, count:0 };
+      dayMap[key].r += t.rMultiple;
+      dayMap[key].count++;
+    }
+  });
+
+  const firstDow = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+  ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].forEach(d=>{
+    const el = document.createElement('div');
+    el.className = 'mono text-[10px] text-zinc-500 text-center uppercase pb-1';
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+  for(let i=0;i<firstDow;i++){
+    const el = document.createElement('div');
+    el.className = 'cal-cell empty aspect-square';
+    grid.appendChild(el);
+  }
+  for(let day=1; day<=daysInMonth; day++){
+    const el = document.createElement('div');
+    const info = dayMap[day];
+    el.className = 'cal-cell aspect-square rounded-md border border-zinc-800 bg-zinc-950 p-2 flex flex-col justify-between mono' + (info ? (info.r>=0?' pos':' neg') : '');
+    el.innerHTML = `<div class="cal-daynum text-[10px] text-zinc-500">${day}</div>` +
+      (info ? `<div><div class="cal-r text-xs font-bold">${info.r>=0?'+':''}${info.r.toFixed(1)}R</div><div class="text-[9px] text-zinc-500">${info.count} trade${info.count>1?'s':''}</div></div>` : '');
+    grid.appendChild(el);
+  }
+}
+
+// ---------- Playbooks ----------
+document.getElementById('btnNewPlaybook').addEventListener('click', ()=>{
+  editingPlaybookId = null;
+  document.getElementById('pb-name').value = '';
+  document.getElementById('pb-desc').value = '';
+  document.getElementById('newPlaybookForm').classList.add('show');
+});
+document.getElementById('btnCancelPlaybook').addEventListener('click', ()=>{
+  document.getElementById('newPlaybookForm').classList.remove('show');
+});
+document.getElementById('btnSavePlaybook').addEventListener('click', ()=>{
+  const name = document.getElementById('pb-name').value.trim();
+  const desc = document.getElementById('pb-desc').value.trim();
+  if(!name){ toast('Donne un nom à ce playbook'); return; }
+  if(editingPlaybookId){
+    const p = playbooks.find(p=>p.id===editingPlaybookId);
+    p.name = name; p.desc = desc;
+    toast('Playbook mis à jour');
+  } else {
+    playbooks.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, desc });
+    toast('Playbook créé');
+  }
+  document.getElementById('newPlaybookForm').classList.remove('show');
+  refreshStrategySelect();
+  renderPlaybooks();
+});
+function editPlaybook(id){
+  const p = playbooks.find(p=>p.id===id);
+  if(!p) return;
+  editingPlaybookId = id;
+  document.getElementById('pb-name').value = p.name;
+  document.getElementById('pb-desc').value = p.desc || '';
+  document.getElementById('newPlaybookForm').classList.add('show');
+}
+function deletePlaybook(id){
+  if(playbooks.length<=1){ toast('Garde au moins un playbook'); return; }
+  if(!confirm('Supprimer ce playbook ?')) return;
+  playbooks = playbooks.filter(p=>p.id!==id);
+  refreshStrategySelect();
+  renderPlaybooks();
+}
+function renderPlaybooks(){
+  scheduleAutoSave();
+  const grid = document.getElementById('playbookGrid');
+  grid.innerHTML = '';
+  playbooks.forEach(p=>{
+    const closedForP = getVisibleTrades().filter(t=>t.strategy===p.id && (t.result==='Win'||t.result==='Loss'||t.result==='BE'));
+    const winsForP = closedForP.filter(t=>t.result==='Win');
+    const wr = closedForP.length ? (winsForP.length/closedForP.length*100) : 0;
+    const totalR = closedForP.filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
+    const card = document.createElement('div');
+    card.className = 'rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 flex flex-col gap-3';
+    card.innerHTML = `
+      <h4 class="text-base font-semibold text-white">${p.name}</h4>
+      <p class="text-xs text-zinc-500 leading-relaxed">${p.desc || 'Aucune description.'}</p>
+      <div class="flex gap-4 mono text-xs text-zinc-500 border-t border-zinc-800 pt-3">
+        <div><b class="text-white text-sm font-semibold">${closedForP.length}</b> trades</div>
+        <div><b class="text-white text-sm font-semibold">${wr.toFixed(0)}%</b> winrate</div>
+        <div><b class="text-sm font-semibold" style="color:${totalR>=0?'#34d399':'#f87171'}">${totalR>=0?'+':''}${totalR.toFixed(1)}R</b></div>
+      </div>
+      <div class="flex gap-2 mt-auto">
+        <button class="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-zinc-400 hover:text-white" onclick="editPlaybook('${p.id}')">Modifier</button>
+        <button class="rounded-md border border-red-900/40 px-3 py-1.5 text-xs text-red-400 hover:bg-red-950/40" onclick="deletePlaybook('${p.id}')">Supprimer</button>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ---------- Notes ----------
+document.getElementById('btnNewNote').addEventListener('click', ()=>{
+  editingNoteId = null;
+  document.getElementById('note-title').value = '';
+  document.getElementById('note-content').value = '';
+  document.getElementById('newNoteForm').classList.add('show');
+});
+document.getElementById('btnCancelNote').addEventListener('click', ()=>{
+  document.getElementById('newNoteForm').classList.remove('show');
+});
+document.getElementById('btnSaveNote').addEventListener('click', ()=>{
+  const title = document.getElementById('note-title').value.trim();
+  const content = document.getElementById('note-content').value.trim();
+  if(!title && !content){ toast('Écris quelque chose avant de sauvegarder'); return; }
+  if(editingNoteId){
+    const n = notes.find(n=>n.id===editingNoteId);
+    n.title = title; n.content = content;
+    toast('Note mise à jour');
+  } else {
+    notes.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), title, content, date: new Date().toISOString().slice(0,10) });
+    toast('Note enregistrée');
+  }
+  document.getElementById('newNoteForm').classList.remove('show');
+  renderNotes();
+});
+function editNote(id){
+  const n = notes.find(n=>n.id===id);
+  if(!n) return;
+  editingNoteId = id;
+  document.getElementById('note-title').value = n.title;
+  document.getElementById('note-content').value = n.content;
+  document.getElementById('newNoteForm').classList.add('show');
+}
+function deleteNote(id){
+  if(!confirm('Supprimer cette note ?')) return;
+  notes = notes.filter(n=>n.id!==id);
+  renderNotes();
+}
+function renderNotes(){
+  scheduleAutoSave();
+  const grid = document.getElementById('notesGrid');
+  const sorted = [...notes].sort((a,b)=> new Date(b.date) - new Date(a.date));
+  document.getElementById('notesEmpty').style.display = sorted.length ? 'none' : 'block';
+  grid.innerHTML = sorted.map(n=>`
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 flex flex-col gap-2 cursor-pointer hover:border-zinc-700 transition-colors" onclick="editNote('${n.id}')">
+      <div class="flex items-center justify-between">
+        <h4 class="text-sm font-semibold text-white">${n.title || 'Sans titre'}</h4>
+        <span class="mono text-[10px] text-zinc-600">${n.date}</span>
+      </div>
+      <p class="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap line-clamp-6">${n.content}</p>
+    </div>
+  `).join('');
+}
+
+// ---------- Gallery ----------
+document.getElementById('btnAddGalleryImg').addEventListener('click', ()=>{
+  document.getElementById('f-gallery-upload').click();
+});
+document.getElementById('f-gallery-upload').addEventListener('change', e=>{
+  const files = Array.from(e.target.files || []);
+  if(!files.length) return;
+  files.forEach(file=>{
+    const reader = new FileReader();
+    reader.onload = ev=>{
+      galleryItems.push({
+        id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+        image: ev.target.result,
+        category: 'MSS',
+        outcome: '—',
+        description: '',
+        date: new Date().toISOString().slice(0,10)
+      });
+      renderGallery();
+    };
+    reader.readAsDataURL(file);
+  });
+  e.target.value = '';
+  toast('Images ajoutées — clique sur une image pour la catégoriser');
+});
+
+document.getElementById('galleryFilters').addEventListener('click', e=>{
+  const chip = e.target.closest('.filter-chip');
+  if(!chip) return;
+  currentGalleryFilter = chip.dataset.gfilter;
+  document.querySelectorAll('#galleryFilters .filter-chip').forEach(c=>c.classList.toggle('active', c===chip));
+  renderGallery();
+});
+
+function editGalleryItem(id){
+  const g = galleryItems.find(g=>g.id===id);
+  if(!g) return;
+  editingGalleryId = id;
+  document.getElementById('ge-preview').src = g.image;
+  document.getElementById('ge-category').value = g.category;
+  document.getElementById('ge-outcome').value = g.outcome;
+  document.getElementById('ge-desc').value = g.description;
+  document.getElementById('galleryEditForm').classList.add('show');
+  document.getElementById('galleryEditForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
+document.getElementById('btnCancelGalleryEdit').addEventListener('click', ()=>{
+  document.getElementById('galleryEditForm').classList.remove('show');
+  editingGalleryId = null;
+});
+document.getElementById('btnSaveGalleryImg').addEventListener('click', ()=>{
+  const g = galleryItems.find(g=>g.id===editingGalleryId);
+  if(!g) return;
+  g.category = document.getElementById('ge-category').value;
+  g.outcome = document.getElementById('ge-outcome').value;
+  g.description = document.getElementById('ge-desc').value.trim();
+  document.getElementById('galleryEditForm').classList.remove('show');
+  toast('Image mise à jour');
+  renderGallery();
+});
+document.getElementById('btnDeleteGalleryImg').addEventListener('click', ()=>{
+  if(!confirm('Supprimer cette image de la galerie ?')) return;
+  galleryItems = galleryItems.filter(g=>g.id!==editingGalleryId);
+  document.getElementById('galleryEditForm').classList.remove('show');
+  toast('Image supprimée');
+  renderGallery();
+});
+
+const outcomeStyles = { 'Souvent TP':'background:rgba(16,185,129,.1); color:#34d399;', 'Souvent SL':'background:rgba(248,113,113,.1); color:#f87171;', 'Neutre':'background:#27272a; color:#a1a1aa;', '—':'background:#18181b; color:#52525b;' };
+
+function renderGallery(){
+  scheduleAutoSave();
+  let list = [...galleryItems].sort((a,b)=> new Date(b.date) - new Date(a.date));
+  if(currentGalleryFilter !== 'all') list = list.filter(g=>g.category===currentGalleryFilter);
+  const grid = document.getElementById('galleryGrid');
+  document.getElementById('galleryEmpty').style.display = list.length ? 'none' : 'block';
+  grid.innerHTML = list.map(g=>`
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden cursor-pointer hover:border-zinc-700 transition-colors" onclick="editGalleryItem('${g.id}')">
+      <img src="${g.image}" class="w-full h-36 object-cover">
+      <div class="p-3 flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <span class="mono text-[10px] px-2 py-0.5 rounded border border-zinc-800 text-zinc-400">${g.category}</span>
+          <span class="mono text-[10px] px-2 py-0.5 rounded-full" style="${outcomeStyles[g.outcome]||outcomeStyles['—']}">${g.outcome}</span>
+        </div>
+        ${g.description ? `<p class="text-xs text-zinc-500 line-clamp-2">${g.description}</p>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ---------- Import / Export ----------
+document.getElementById('btnExport').addEventListener('click', ()=>{
+  const payload = { trades, playbooks, notes, galleryItems, accounts };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `journal-trading-${stamp}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Fichier téléchargé — garde-le, tu pourras le réimporter à ta prochaine visite');
+});
+document.getElementById('btnImport').addEventListener('click', ()=>{
+  document.getElementById('fileImport').click();
+});
+document.getElementById('fileImport').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const imported = JSON.parse(ev.target.result);
+      let importedTrades, importedPlaybooks, importedNotes, importedGallery, importedAccounts;
+      if(Array.isArray(imported)){ importedTrades = imported; importedPlaybooks = null; importedNotes = null; importedGallery = null; importedAccounts = null; }
+      else if(imported && Array.isArray(imported.trades)){
+        importedTrades = imported.trades;
+        importedPlaybooks = imported.playbooks || null;
+        importedNotes = imported.notes || null;
+        importedGallery = imported.galleryItems || null;
+        importedAccounts = imported.accounts || null;
+      }
+      else throw new Error('format invalide');
+      if(trades.length && !confirm(`Remplacer les ${trades.length} trades actuels par les ${importedTrades.length} trades importés ?`)) return;
+      trades = importedTrades.map(t=>({
+        ...t,
+        account: t.account || 'default',
+        screenshots: t.screenshots ? t.screenshots : (t.screenshot ? [t.screenshot] : [])
+      }));
+      if(importedPlaybooks && importedPlaybooks.length) playbooks = importedPlaybooks;
+      if(importedNotes) notes = importedNotes;
+      if(importedGallery) galleryItems = importedGallery;
+      if(importedAccounts && importedAccounts.length) accounts = importedAccounts;
+      refreshStrategySelect();
+      refreshAccountSelects();
+      goToTab('dashboard');
+      toast(`${importedTrades.length} trades importés`);
+    }catch(err){
+      toast('Fichier invalide');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ---------- Screenshots export (Win/Loss folders in a .zip) ----------
+document.getElementById('btnExportShots').addEventListener('click', async ()=>{
+  const withShots = trades.filter(t=>t.screenshots && t.screenshots.length);
+  if(!withShots.length){ toast("Aucun trade n'a de screenshot pour l'instant"); return; }
+  if(typeof JSZip === 'undefined'){ toast('La librairie ZIP ne s\'est pas chargée — vérifie ta connexion'); return; }
+
+  toast('Préparation du fichier .zip...');
+  const zip = new JSZip();
+  const folders = { Win: zip.folder('Win'), Loss: zip.folder('Loss'), BE: zip.folder('BE'), Open: zip.folder('Open') };
+  let count = 0;
+
+  withShots.forEach(t=>{
+    const folder = folders[t.result] || folders.Open;
+    const safePair = (t.pair||'trade').replace(/[^a-zA-Z0-9]/g,'');
+    t.screenshots.forEach((src, i)=>{
+      const match = /^data:image\/(\w+);base64,(.*)$/.exec(src);
+      if(!match) return;
+      const ext = match[1]==='jpeg' ? 'jpg' : match[1];
+      const filename = `${t.date}_${safePair}_${t.rMultiple!=null ? t.rMultiple.toFixed(1)+'R_' : ''}${i+1}.${ext}`;
+      folder.file(filename, match[2], { base64:true });
+      count++;
+    });
+  });
+
+  const blob = await zip.generateAsync({ type:'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `screenshots-trading-${new Date().toISOString().slice(0,10)}.zip`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`${count} screenshot(s) exportés — dézippe le fichier pour retrouver tes dossiers Win/Loss`);
+});
+
+// ---------- Excel import ----------
+function normKey(s){
+  return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+const excelAliases = {
+  pair:'pair', paire:'pair', pairs:'pair',
+  date:'date', backtesttime:'date', open:'date', datestart:'date',
+  time:'time', heure:'time',
+  position:'position', direction:'position', sens:'position', side:'position',
+  bias:'bias',
+  dol:'dol', doltype:'dol',
+  liquiditysweep:'sweep', sweep:'sweep',
+  marketstructureshift:'mss', mss:'mss',
+  displacement:'displacement',
+  fvgtimeframe:'fvgTf', fvgtf:'fvgTf',
+  rmultiple:'rMultiple', r:'rMultiple', avgriskreward:'rMultiple',
+  maxrratteint:'maxRR', maxrr:'maxRR', maxriskreward:'maxRR',
+  resultat:'result', result:'result',
+  session:'session', sessions:'session',
+  planrespecte:'planRespecte',
+  observation:'notes', notes:'notes', note:'notes', tags:'notes',
+  status:'rawStatus',
+  grosspnl:'grossPnl', rpnl:'grossPnl',
+  commission:'commission',
+  risk:'pctRisk', pctrisk:'pctRisk',
+  rrratio:'rrRatio'
+};
+const excelTruthy = ['oui','yes','y','true','1','vrai'];
+
+function parseExcelDate(v){
+  if(v instanceof Date) return v;
+  const s = String(v).trim();
+  const isoish = s.replace(/^(\d{4})\/(\d{2})\/(\d{2})/, '$1-$2-$3').replace(' ', 'T');
+  let d = new Date(isoish);
+  if(!isNaN(d)) return d;
+  d = new Date(s);
+  return isNaN(d) ? null : d;
+}
+
+document.getElementById('btnImportExcel').addEventListener('click', ()=>{
+  document.getElementById('fileImportExcel').click();
+});
+document.getElementById('fileImportExcel').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    try{
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, { type:'array', cellDates:true });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval:'' });
+      if(!rows.length){ toast('Ce fichier ne contient aucune ligne'); return; }
+
+      const defaultAccount = currentAccount!=='all' ? currentAccount : accounts[0].id;
+      let added = 0, skipped = 0;
+
+      rows.forEach(row=>{
+        const m = {};
+        Object.keys(row).forEach(header=>{
+          const key = excelAliases[normKey(header)];
+          if(key && !(key in m)) m[key] = row[header];
+        });
+
+        if(!m.pair || m.date===undefined || m.date===''){ skipped++; return; }
+        const d = parseExcelDate(m.date);
+        if(!d){ skipped++; return; }
+        const dateStr = d.toISOString().slice(0,10);
+        const timeStr = m.time || d.toISOString().slice(11,16);
+
+        const toBool = v => excelTruthy.includes(String(v).trim().toLowerCase());
+        const posRaw = String(m.position||'').trim().toLowerCase();
+        const position = ['sell','short','vente'].includes(posRaw) ? 'Sell' : 'Buy';
+        const num = v => (v!=null && v!=='' && !isNaN(parseFloat(v))) ? parseFloat(v) : null;
+        const grossPnl = num(m.grossPnl);
+        const rMultiple = num(m.rMultiple);
+        const commission = num(m.commission) || 0;
+        const rawStatusLower = String(m.rawStatus||'').trim().toLowerCase();
+
+        let result = 'Open';
+        if(m.result){
+          const r = String(m.result).trim().toLowerCase();
+          if(['win','gagnant','tp'].includes(r)) result = 'Win';
+          else if(['loss','perdant','sl'].includes(r)) result = 'Loss';
+          else if(['be','breakeven'].includes(r)) result = 'BE';
+          else if(['open','encours'].includes(r)) result = 'Open';
+        } else if(rawStatusLower === 'open'){
+          result = 'Open';
+        } else {
+          const signal = grossPnl!=null ? grossPnl : rMultiple;
+          if(signal!=null) result = signal>0 ? 'Win' : (signal<0 ? 'Loss' : 'BE');
+        }
+
+        trades.push({
+          id: Date.now().toString(36)+Math.random().toString(36).slice(2,7)+added,
+          type:'Backtest',
+          account: defaultAccount,
+          pair: String(m.pair).trim(),
+          date: dateStr,
+          time: timeStr,
+          session: m.session || 'London',
+          bias: m.bias || 'Neutre',
+          position,
+          dol: m.dol || 'None',
+          fvgTf: m.fvgTf || 'M5',
+          strategy: playbooks[0].id,
+          result,
+          status:'',
+          rMultiple, maxRR: num(m.maxRR),
+          pctRisk: num(m.pctRisk), rrRatio: num(m.rrRatio),
+          grossPnl, commission,
+          netPnl: grossPnl!=null ? grossPnl - commission : null,
+          emotion: null,
+          confluence: {
+            sweep: toBool(m.sweep), mss: toBool(m.mss),
+            displacement: toBool(m.displacement), planRespecte: toBool(m.planRespecte)
+          },
+          notes: m.notes ? String(m.notes).trim() : '',
+          screenshots: []
+        });
+        added++;
+      });
+
+      goToTab('journal');
+      toast(added ? `${added} trade(s) importé(s) depuis Excel${skipped?` — ${skipped} ligne(s) ignorée(s)`:''} — clique dessus pour compléter les infos ICT` : "Aucune ligne exploitable — vérifie les en-têtes de colonnes");
+    }catch(err){
+      console.error(err);
+      toast("Impossible de lire ce fichier — vérifie que c'est bien un .xlsx, .xls ou .csv");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+});
+
+// ---------- Init ----------
+document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+refreshStrategySelect();
+refreshAccountSelects();
+renderJournal();
+renderDashboard();
+</script>
+</body>
+</html>
