@@ -197,6 +197,33 @@
     background:linear-gradient(135deg, rgba(59,130,246,.08), rgba(6,182,212,.05));
   }
   .toast{ box-shadow:0 20px 55px rgba(0,0,0,.42), 0 0 0 1px rgba(96,165,250,.25) inset; }
+  html:not(.light-theme) body.bg-black{
+    background:
+      radial-gradient(circle at top left, rgba(59,130,246,.24), transparent 34rem),
+      radial-gradient(circle at 78% 8%, rgba(6,182,212,.16), transparent 28rem),
+      radial-gradient(circle at bottom right, rgba(245,158,11,.12), transparent 34rem),
+      var(--bg) !important;
+  }
+  .hero-card{
+    position:relative;
+    overflow:hidden;
+    border:1px solid rgba(96,165,250,.28) !important;
+    background:
+      linear-gradient(135deg, rgba(37,99,235,.24), rgba(6,182,212,.10) 42%, rgba(15,23,42,.82)),
+      radial-gradient(circle at 80% 20%, rgba(245,158,11,.18), transparent 20rem) !important;
+  }
+  .hero-card::before{
+    content:"";
+    position:absolute;
+    inset:-35% auto auto 58%;
+    width:360px;
+    height:360px;
+    border-radius:999px;
+    background:radial-gradient(circle, rgba(96,165,250,.26), transparent 66%);
+  }
+  .hero-orb{
+    box-shadow:0 0 34px rgba(6,182,212,.42), inset 0 1px 0 rgba(255,255,255,.22);
+  }
   @media (max-width: 1100px){
     .grid.grid-cols-4, #statsGrid2{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
     .grid.grid-cols-3, .grid.grid-cols-2{ grid-template-columns:1fr !important; }
@@ -270,8 +297,8 @@
         <svg class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
       </div>
       <div>
-        <div class="text-sm font-semibold text-white leading-none">TradeLog</div>
-        <div class="mono text-[10px] text-zinc-500 mt-1">sweep · mss · displacement</div>
+        <div class="text-base font-bold text-white leading-none tracking-tight">TradeLog</div>
+        <div class="mono text-[10px] text-blue-300/80 mt-1">sweep · mss · displacement</div>
       </div>
     </div>
 
@@ -353,6 +380,25 @@
 
       <!-- DASHBOARD -->
       <div class="panel active" id="panel-dashboard">
+        <section class="hero-card mb-5 rounded-2xl border p-6 md:p-7">
+          <div class="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div class="max-w-2xl">
+              <div class="mono mb-3 inline-flex rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-blue-200">Nouveau design actif</div>
+              <h2 class="text-2xl font-semibold tracking-tight text-white md:text-3xl">Ton journal de trading, plus clair et plus rapide à lire.</h2>
+              <p class="mt-2 text-sm leading-6 text-zinc-300">Dashboard mis en avant, cartes plus contrastées, actions visibles et navigation modernisée pour analyser tes setups sans perdre le focus.</p>
+            </div>
+            <div class="grid min-w-[220px] grid-cols-2 gap-3 mono text-xs text-zinc-300">
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div class="hero-orb mb-3 h-8 w-8 rounded-full bg-cyan-400/70"></div>
+                Lecture plus nette
+              </div>
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div class="hero-orb mb-3 h-8 w-8 rounded-full bg-blue-500/80"></div>
+                Accès rapide
+              </div>
+            </div>
+          </div>
+        </section>
         <div class="grid grid-cols-4 gap-4" id="statsGrid"></div>
 
         <div class="mt-4 grid grid-cols-3 gap-4">
