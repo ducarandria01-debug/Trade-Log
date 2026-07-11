@@ -1593,6 +1593,26 @@ function renderDashboard(){
     statCardHTML('Erreur coûteuse', worstTag, 'bg-red-500/10', 'text-red-400') +
     statCardHTML('R du jour', (todayR>=0?'+':'')+todayR.toFixed(1)+'R', todayR>=0?'bg-emerald-500/10':'bg-red-500/10', todayR>=0?'text-emerald-400':'text-red-400');
 
+  let thirdRow = document.getElementById('statsGrid3');
+  if(!thirdRow){
+    thirdRow = document.createElement('div');
+    thirdRow.id = 'statsGrid3';
+    thirdRow.className = 'grid grid-cols-4 gap-4 mt-4';
+    secondRow.insertAdjacentElement('afterend', thirdRow);
+  }
+  const graded = visible.map(t=>t.grade ?? computeTradeGrade(t));
+  const avgGrade = graded.length ? graded.reduce((a,b)=>a+b,0)/graded.length : 0;
+  const aPlus = visible.filter(t=>(t.grade ?? computeTradeGrade(t))>=80).length;
+  const tagCosts = tagCostSummary(closed);
+  const worstTag = tagCosts.length ? `${tagCosts[0][0]} (${tagCosts[0][1].r.toFixed(1)}R)` : '—';
+  const today = new Date().toISOString().slice(0,10);
+  const todayR = getTradesForDate(today).filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
+  thirdRow.innerHTML =
+    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400', avgGrade>=80?'A+':avgGrade>=65?'B':avgGrade>=50?'C':'D') +
+    statCardHTML('Trades A+', String(aPlus), 'bg-emerald-500/10', 'text-emerald-400') +
+    statCardHTML('Erreur coûteuse', worstTag, 'bg-red-500/10', 'text-red-400') +
+    statCardHTML('R du jour', (todayR>=0?'+':'')+todayR.toFixed(1)+'R', todayR>=0?'bg-emerald-500/10':'bg-red-500/10', todayR>=0?'text-emerald-400':'text-red-400');
+
   const sorted = [...closed].filter(t=>t.rMultiple!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
   let cum = 0;
   const equityData = sorted.map(t=>{ cum += t.rMultiple; return cum; });
