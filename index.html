@@ -348,8 +348,9 @@
         <select id="accountSelector" class="w-full rounded-md border border-zinc-800 bg-zinc-950 px-2.5 py-2 text-xs text-white mono mb-1.5"></select>
         <button id="btnToggleAccountManage" class="text-[10px] text-zinc-500 hover:text-white underline decoration-dotted">Gérer les comptes</button>
         <div class="new-playbook-form mt-2 p-2.5 rounded-md border border-dashed border-zinc-800" id="accountManagePanel">
-          <div class="flex gap-1.5 mb-2">
-            <input type="text" id="new-account-name" placeholder="Nom du compte" class="flex-1 min-w-0 rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-white">
+          <div class="grid grid-cols-[1fr_90px_auto] gap-1.5 mb-2">
+            <input type="text" id="new-account-name" placeholder="Nom du compte" class="min-w-0 rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-white">
+            <input type="number" step="any" id="new-account-balance" placeholder="Solde" class="min-w-0 rounded border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-xs text-white mono">
             <button id="btnAddAccount" class="rounded bg-blue-500 px-2.5 text-xs text-white shrink-0">+</button>
           </div>
           <div id="accountList" class="flex flex-col gap-1"></div>
@@ -448,6 +449,17 @@
           <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
             <h3 class="text-sm font-semibold text-white mb-4">Par paire (R)</h3>
             <div class="h-52"><canvas id="pairChart"></canvas></div>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-4">
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-4">Winrate par session</h3>
+            <div class="h-52"><canvas id="sessionChart"></canvas></div>
+          </div>
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-4">Winrate par bias</h3>
+            <div class="h-52"><canvas id="biasChart"></canvas></div>
           </div>
         </div>
       </div>
@@ -648,6 +660,18 @@
 
       <!-- JOURNAL -->
       <div class="panel" id="panel-journal">
+        <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 mb-4">
+          <div class="grid grid-cols-6 gap-3 field">
+            <input id="journalSearch" type="search" placeholder="Recherche paire / observation" class="col-span-2 rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white">
+            <select id="journalPairFilter" class="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"><option value="all">Toutes les paires</option></select>
+            <select id="journalSessionFilter" class="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white"><option value="all">Toutes sessions</option><option>Asia</option><option>London</option><option>New York</option></select>
+            <input id="journalDateFrom" type="date" class="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white">
+            <input id="journalDateTo" type="date" class="rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-white">
+          </div>
+          <div class="mt-3 flex justify-end">
+            <button id="btnResetJournalFilters" class="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-zinc-400 hover:text-white">Réinitialiser</button>
+          </div>
+        </div>
         <div class="flex gap-2 flex-wrap mb-4" id="filters">
           <div class="filter-chip active rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="all">Tous</div>
           <div class="filter-chip rounded-full border px-3 py-1.5 mono text-xs cursor-pointer transition-colors" data-filter="Backtest">Backtest</div>
@@ -779,7 +803,8 @@ let playbooks = [
 ];
 let editingId = null;
 let editingPlaybookId = null;
-let accounts = [{ id:'default', name:'Compte principal' }];
+let editingAccountId = null;
+let accounts = [{ id:'default', name:'Compte principal', startingBalance:0 }];
 let currentAccount = 'all';
 let fileHandle = null;
 let autoSaveTimer = null;
@@ -790,6 +815,11 @@ let galleryItems = [];
 let editingGalleryId = null;
 let currentGalleryFilter = 'all';
 let currentFilter = 'all';
+let journalSearch = '';
+let journalPairFilter = 'all';
+let journalSessionFilter = 'all';
+let journalDateFrom = '';
+let journalDateTo = '';
 let currentTheme = 'dark';
 let currentResult = null;
 let currentType = 'Backtest';
@@ -933,6 +963,25 @@ function refreshStrategySelect(){
   if(playbooks.some(p=>p.id===prev)) sel.value = prev;
 }
 
+
+function accountStartingBalance(id){
+  const account = accounts.find(a=>a.id===id);
+  return parseFloat(account?.startingBalance) || 0;
+}
+function accountNetPnl(id){
+  return trades.filter(t=>(t.account||'default')===id && t.netPnl!=null).reduce((s,t)=>s+t.netPnl,0);
+}
+function accountCurrentBalance(id){
+  return accountStartingBalance(id) + accountNetPnl(id);
+}
+function selectedCurrentBalance(){
+  if(currentAccount==='all') return accounts.reduce((s,a)=>s+accountCurrentBalance(a.id),0);
+  return accountCurrentBalance(currentAccount);
+}
+function formatMoney(v){
+  return (v>=0?'+':'-')+'$'+Math.abs(v).toFixed(0);
+}
+
 // ---------- Accounts ----------
 function getVisibleTrades(){
   return currentAccount==='all' ? trades : trades.filter(t=>(t.account||'default')===currentAccount);
@@ -942,7 +991,8 @@ function refreshAccountSelects(){
   scheduleAutoSave();
   const sidebarSel = document.getElementById('accountSelector');
   const prevSidebar = sidebarSel.value || currentAccount;
-  sidebarSel.innerHTML = '<option value="all">Tous les comptes</option>' + accounts.map(a=>`<option value="${a.id}">${a.name}</option>`).join('');
+  accounts = accounts.map(a=>({...a, startingBalance: parseFloat(a.startingBalance)||0}));
+  sidebarSel.innerHTML = `<option value="all">Tous les comptes · ${formatMoney(selectedCurrentBalance())}</option>` + accounts.map(a=>`<option value="${a.id}">${a.name} · ${formatMoney(accountCurrentBalance(a.id))}</option>`).join('');
   sidebarSel.value = accounts.some(a=>a.id===prevSidebar) || prevSidebar==='all' ? prevSidebar : 'all';
   currentAccount = sidebarSel.value;
 
@@ -956,9 +1006,15 @@ function refreshAccountSelects(){
 
 function renderAccountList(){
   document.getElementById('accountList').innerHTML = accounts.map(a=>`
-    <div class="flex items-center justify-between text-xs px-1.5 py-1 rounded hover:bg-zinc-900">
-      <span class="text-zinc-300">${a.name}</span>
-      <span class="text-red-400/60 hover:text-red-400 cursor-pointer text-[10px]" onclick="deleteAccount('${a.id}')">supprimer</span>
+    <div class="text-xs px-1.5 py-1.5 rounded hover:bg-zinc-900">
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-zinc-300 truncate">${a.name}</span>
+        <span class="mono text-[10px] ${accountCurrentBalance(a.id)>=0?'text-emerald-400':'text-red-400'}">${formatMoney(accountCurrentBalance(a.id))}</span>
+      </div>
+      <div class="mt-1 flex items-center justify-between text-[10px]">
+        <span class="text-zinc-600">Initial ${formatMoney(accountStartingBalance(a.id))}</span>
+        <span class="flex gap-2"><button class="text-zinc-500 hover:text-white" onclick="editAccount('${a.id}')">modifier</button><button class="text-red-400/60 hover:text-red-400" onclick="deleteAccount('${a.id}')">supprimer</button></span>
+      </div>
     </div>
   `).join('');
 }
@@ -980,16 +1036,40 @@ document.getElementById('btnToggleAccountManage').addEventListener('click', ()=>
   document.getElementById('accountManagePanel').classList.toggle('show');
 });
 
+function editAccount(id){
+  const account = accounts.find(a=>a.id===id);
+  if(!account) return;
+  editingAccountId = id;
+  document.getElementById('new-account-name').value = account.name;
+  document.getElementById('new-account-balance').value = accountStartingBalance(id);
+  document.getElementById('btnAddAccount').textContent = '✓';
+  document.getElementById('accountManagePanel').classList.add('show');
+}
+
 document.getElementById('btnAddAccount').addEventListener('click', ()=>{
   const input = document.getElementById('new-account-name');
+  const balanceInput = document.getElementById('new-account-balance');
   const name = input.value.trim();
+  const startingBalance = parseFloat(balanceInput.value) || 0;
   if(!name){ toast('Donne un nom à ce compte'); return; }
-  accounts.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), name });
+  if(editingAccountId){
+    const account = accounts.find(a=>a.id===editingAccountId);
+    if(account){ account.name = name; account.startingBalance = startingBalance; }
+    editingAccountId = null;
+    document.getElementById('btnAddAccount').textContent = '+';
+    toast('Compte mis à jour');
+  } else {
+    accounts.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), name, startingBalance });
+    toast('Compte ajouté');
+  }
   input.value = '';
+  balanceInput.value = '';
   refreshAccountSelects();
-  toast('Compte ajouté');
 });
 document.getElementById('new-account-name').addEventListener('keydown', e=>{
+  if(e.key==='Enter') document.getElementById('btnAddAccount').click();
+});
+document.getElementById('new-account-balance').addEventListener('keydown', e=>{
   if(e.key==='Enter') document.getElementById('btnAddAccount').click();
 });
 
@@ -998,6 +1078,7 @@ function deleteAccount(id){
   if(!confirm('Supprimer ce compte ? Les trades qui lui sont liés resteront visibles dans "Tous les comptes".')) return;
   accounts = accounts.filter(a=>a.id!==id);
   if(currentAccount===id) currentAccount = 'all';
+  if(editingAccountId===id){ editingAccountId = null; document.getElementById('btnAddAccount').textContent = '+'; }
   refreshAccountSelects();
   toast('Compte supprimé');
 }
@@ -1226,11 +1307,13 @@ document.getElementById('btnSaveTrade').addEventListener('click', ()=>{
     trades.push(trade);
     toast('Trade enregistré — pense à sauvegarder sur ton PC');
   }
+  refreshAccountSelects();
   resetForm();
   goToTab('journal');
 });
 
 document.getElementById('btnCancelEdit').addEventListener('click', ()=>{
+  refreshAccountSelects();
   resetForm();
   goToTab('journal');
 });
@@ -1312,6 +1395,7 @@ function deleteTrade(id, ev){
   ev.stopPropagation();
   if(!confirm('Supprimer ce trade ?')) return;
   trades = trades.filter(t=>t.id!==id);
+  refreshAccountSelects();
   renderJournal();
   toast('Trade supprimé');
 }
@@ -1330,6 +1414,36 @@ document.getElementById('filters').addEventListener('click', e=>{
   renderJournal();
 });
 
+function refreshJournalPairFilter(){
+  const sel = document.getElementById('journalPairFilter');
+  if(!sel) return;
+  const prev = sel.value || journalPairFilter;
+  const pairs = [...new Set(getVisibleTrades().map(t=>t.pair).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML = '<option value="all">Toutes les paires</option>' + pairs.map(pair=>`<option value="${pair}">${pair}</option>`).join('');
+  sel.value = pairs.includes(prev) ? prev : 'all';
+  journalPairFilter = sel.value;
+}
+['journalSearch','journalPairFilter','journalSessionFilter','journalDateFrom','journalDateTo'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', e=>{
+    journalSearch = document.getElementById('journalSearch').value.trim().toLowerCase();
+    journalPairFilter = document.getElementById('journalPairFilter').value;
+    journalSessionFilter = document.getElementById('journalSessionFilter').value;
+    journalDateFrom = document.getElementById('journalDateFrom').value;
+    journalDateTo = document.getElementById('journalDateTo').value;
+    renderJournal();
+  });
+});
+document.getElementById('btnResetJournalFilters').addEventListener('click', ()=>{
+  journalSearch = ''; journalPairFilter = 'all'; journalSessionFilter = 'all'; journalDateFrom = ''; journalDateTo = '';
+  document.getElementById('journalSearch').value = '';
+  document.getElementById('journalSessionFilter').value = 'all';
+  document.getElementById('journalDateFrom').value = '';
+  document.getElementById('journalDateTo').value = '';
+  refreshJournalPairFilter();
+  renderJournal();
+});
+
+
 function renderJournal(){
   scheduleAutoSave();
   let list = [...getVisibleTrades()].sort((a,b)=> new Date(b.date) - new Date(a.date));
@@ -1337,6 +1451,12 @@ function renderJournal(){
   if(currentFilter==='Backtest'||currentFilter==='Live') list = list.filter(t=>t.type===currentFilter);
   if(currentFilter==='full') list = list.filter(t=>t.confluence.sweep && t.confluence.mss && t.confluence.displacement);
   if(currentFilter==='planNo') list = list.filter(t=>!t.confluence.planRespecte);
+  refreshJournalPairFilter();
+  if(journalSearch) list = list.filter(t=>String(t.pair||'').toLowerCase().includes(journalSearch) || String(t.notes||'').toLowerCase().includes(journalSearch));
+  if(journalPairFilter!=='all') list = list.filter(t=>t.pair===journalPairFilter);
+  if(journalSessionFilter!=='all') list = list.filter(t=>t.session===journalSessionFilter);
+  if(journalDateFrom) list = list.filter(t=>t.date >= journalDateFrom);
+  if(journalDateTo) list = list.filter(t=>t.date <= journalDateTo);
 
   const body = document.getElementById('journalBody');
   body.innerHTML = '';
@@ -1435,10 +1555,10 @@ function renderDashboard(){
   sortedForDD.forEach(t=>{ cumDD += t.rMultiple; if(cumDD>peak) peak=cumDD; const dd = peak-cumDD; if(dd>maxDD) maxDD=dd; });
 
   document.getElementById('statsGrid').innerHTML =
+    statCardHTML('Solde actuel', formatMoney(selectedCurrentBalance()), selectedCurrentBalance()>=0?'bg-emerald-500/10':'bg-red-500/10', selectedCurrentBalance()>=0?'text-emerald-400':'text-red-400') +
     statCardHTML('Profit total (net)', (totalPnl>=0?'+':'')+'$'+totalPnl.toFixed(0), 'bg-emerald-500/10', 'text-emerald-400') +
     statCardHTML('Win rate', winrate.toFixed(0)+'%', 'bg-blue-500/10', 'text-blue-400') +
-    statCardHTML('Facteur de profit', isFinite(profitFactor)?profitFactor.toFixed(2):'∞', 'bg-blue-500/10', 'text-blue-400') +
-    statCardHTML('Max drawdown', '-'+maxDD.toFixed(2)+'R', 'bg-red-500/10', 'text-red-400');
+    statCardHTML('Facteur de profit', isFinite(profitFactor)?profitFactor.toFixed(2):'∞', 'bg-blue-500/10', 'text-blue-400');
 
   let secondRow = document.getElementById('statsGrid2');
   if(!secondRow){
@@ -1450,8 +1570,28 @@ function renderDashboard(){
   secondRow.innerHTML =
     statCardHTML('R cumulé', (totalR>=0?'+':'')+totalR.toFixed(2)+'R', 'bg-zinc-800', 'text-zinc-400') +
     statCardHTML('Plan respecté', planRate.toFixed(0)+'%', 'bg-amber-500/10', 'text-amber-400') +
-    statCardHTML('Trades total', String(visible.length), 'bg-zinc-800', 'text-zinc-400') +
-    statCardHTML('Trades clôturés', String(closed.length), 'bg-zinc-800', 'text-zinc-400');
+    statCardHTML('Max drawdown', '-'+maxDD.toFixed(2)+'R', 'bg-red-500/10', 'text-red-400') +
+    statCardHTML('Trades total', String(visible.length), 'bg-zinc-800', 'text-zinc-400');
+
+  let thirdRow = document.getElementById('statsGrid3');
+  if(!thirdRow){
+    thirdRow = document.createElement('div');
+    thirdRow.id = 'statsGrid3';
+    thirdRow.className = 'grid grid-cols-4 gap-4 mt-4';
+    secondRow.insertAdjacentElement('afterend', thirdRow);
+  }
+  const graded = visible.map(t=>t.grade ?? computeTradeGrade(t));
+  const avgGrade = graded.length ? graded.reduce((a,b)=>a+b,0)/graded.length : 0;
+  const aPlus = visible.filter(t=>(t.grade ?? computeTradeGrade(t))>=80).length;
+  const tagCosts = tagCostSummary(closed);
+  const worstTag = tagCosts.length ? `${tagCosts[0][0]} (${tagCosts[0][1].r.toFixed(1)}R)` : '—';
+  const today = new Date().toISOString().slice(0,10);
+  const todayR = getTradesForDate(today).filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
+  thirdRow.innerHTML =
+    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400', avgGrade>=80?'A+':avgGrade>=65?'B':avgGrade>=50?'C':'D') +
+    statCardHTML('Trades A+', String(aPlus), 'bg-emerald-500/10', 'text-emerald-400') +
+    statCardHTML('Erreur coûteuse', worstTag, 'bg-red-500/10', 'text-red-400') +
+    statCardHTML('R du jour', (todayR>=0?'+':'')+todayR.toFixed(1)+'R', todayR>=0?'bg-emerald-500/10':'bg-red-500/10', todayR>=0?'text-emerald-400':'text-red-400');
 
   let thirdRow = document.getElementById('statsGrid3');
   if(!thirdRow){
@@ -1527,6 +1667,22 @@ function renderDashboard(){
     labels: Object.keys(pairMap),
     datasets:[{ data: Object.values(pairMap), backgroundColor: Object.values(pairMap).map(v=>v>=0?'#10b981':'#f87171'), borderRadius:4 }]
   }, { indexAxis:'y', scales:{ x:{ grid:{color:chartGridColor()}, ticks:{color:chartTickColor()} }, y:{ grid:{display:false}, ticks:{color:chartTickColor()} } }, plugins:{legend:{display:false}} });
+
+  const sessionMap = {};
+  closed.forEach(t=>{ if(!sessionMap[t.session]) sessionMap[t.session] = []; sessionMap[t.session].push(t); });
+  const sessionLabels = ['Asia','London','New York'].filter(session=>sessionMap[session]);
+  renderChart('sessionChart', 'bar', {
+    labels: sessionLabels,
+    datasets:[{ data: sessionLabels.map(session=>wr(sessionMap[session])), backgroundColor:'#06b6d4', borderRadius:4 }]
+  }, { scales:{ y:{ min:0, max:100, grid:{color:chartGridColor()}, ticks:{color:chartTickColor(), callback:v=>v+'%'} }, x:{ grid:{display:false}, ticks:{color:chartTickColor()} } }, plugins:{legend:{display:false}} });
+
+  const biasMap = {};
+  closed.forEach(t=>{ if(!biasMap[t.bias]) biasMap[t.bias] = []; biasMap[t.bias].push(t); });
+  const biasLabels = ['Neutre','Bearish','Bullish','IDK'].filter(bias=>biasMap[bias]);
+  renderChart('biasChart', 'bar', {
+    labels: biasLabels,
+    datasets:[{ data: biasLabels.map(bias=>wr(biasMap[bias])), backgroundColor:'#8b5cf6', borderRadius:4 }]
+  }, { scales:{ y:{ min:0, max:100, grid:{color:chartGridColor()}, ticks:{color:chartTickColor(), callback:v=>v+'%'} }, x:{ grid:{display:false}, ticks:{color:chartTickColor()} } }, plugins:{legend:{display:false}} });
 }
 
 function renderChart(canvasId, type, data, options){
@@ -1923,6 +2079,7 @@ function normKey(s){
   return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 }
 const excelAliases = {
+  id:'externalId', ticket:'externalId', tradeid:'externalId', orderid:'externalId', positionid:'externalId', dealid:'externalId',
   pair:'pair', paire:'pair', pairs:'pair',
   date:'date', backtesttime:'date', open:'date', datestart:'date',
   time:'time', heure:'time',
@@ -1946,6 +2103,16 @@ const excelAliases = {
   rrratio:'rrRatio'
 };
 const excelTruthy = ['oui','yes','y','true','1','vrai'];
+
+
+function tradeImportKey(t){
+  const ext = String(t.externalId||'').trim();
+  if(ext) return 'id:'+ext.toLowerCase();
+  return ['combo', t.date||'', String(t.pair||'').trim().toLowerCase(), t.position||'', t.result||''].join('|');
+}
+function existingImportKeys(){
+  return new Set(trades.map(tradeImportKey));
+}
 
 function parseExcelDate(v){
   if(v instanceof Date) return v;
@@ -1973,7 +2140,8 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
       if(!rows.length){ toast('Ce fichier ne contient aucune ligne'); return; }
 
       const defaultAccount = currentAccount!=='all' ? currentAccount : accounts[0].id;
-      let added = 0, skipped = 0;
+      let added = 0, skipped = 0, duplicates = 0;
+      const seenImportKeys = existingImportKeys();
 
       rows.forEach(row=>{
         const m = {};
@@ -2013,6 +2181,7 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
 
         const importedTrade = {
           id: Date.now().toString(36)+Math.random().toString(36).slice(2,7)+added,
+          externalId: m.externalId ? String(m.externalId).trim() : '',
           type:'Backtest',
           account: defaultAccount,
           pair: String(m.pair).trim(),
@@ -2040,13 +2209,17 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
           errorTags: [],
           positiveTags: []
         };
+        const importKey = tradeImportKey(importedTrade);
+        if(seenImportKeys.has(importKey)){ duplicates++; return; }
+        seenImportKeys.add(importKey);
         importedTrade.grade = computeTradeGrade(importedTrade);
         trades.push(importedTrade);
         added++;
       });
 
+      refreshAccountSelects();
       goToTab('journal');
-      toast(added ? `${added} trade(s) importé(s) depuis Excel${skipped?` — ${skipped} ligne(s) ignorée(s)`:''} — clique dessus pour compléter les infos ICT` : "Aucune ligne exploitable — vérifie les en-têtes de colonnes");
+      toast(added ? `${added} trade(s) importé(s) depuis Excel${duplicates?` — ${duplicates} doublon(s) ignoré(s)`:''}${skipped?` — ${skipped} ligne(s) ignorée(s)`:''} — clique dessus pour compléter les infos ICT` : (duplicates ? `${duplicates} doublon(s) détecté(s), aucun nouveau trade ajouté` : "Aucune ligne exploitable — vérifie les en-têtes de colonnes"));
     }catch(err){
       console.error(err);
       toast("Impossible de lire ce fichier — vérifie que c'est bien un .xlsx, .xls ou .csv");
