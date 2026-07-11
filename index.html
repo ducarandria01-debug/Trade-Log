@@ -79,6 +79,9 @@
   .theme-opt{color:#a1a1aa; background:#0a0a0a;}
   .theme-opt.sel{background:#3b82f6; color:#fff;}
 
+  .tag-opt{border-color:#27272a; color:#a1a1aa; background:#0a0a0a;}
+  .tag-opt.sel{border-color:#f59e0b; color:#fbbf24; background:rgba(245,158,11,.1);}
+  .tag-opt.positive.sel{border-color:#10b981; color:#34d399; background:rgba(16,185,129,.1);}
   .emo-opt{border-color:#27272a; color:#a1a1aa; background:#0a0a0a;}
   .emo-opt.sel{border-color:currentColor;}
   .emo-Calme.sel{background:rgba(59,130,246,.1); color:#60a5fa;}
@@ -276,7 +279,7 @@
   html.light-theme .result-opt{ border-color:#e4e4e7; color:#71717a; background:#fafafa; }
   html.light-theme .result-opt.sel-BE{ background:#e4e4e7; color:#18181b; }
   html.light-theme .type-opt, html.light-theme .theme-opt{ color:#71717a; background:#fafafa; }
-  html.light-theme .emo-opt{ border-color:#e4e4e7; color:#71717a; background:#fafafa; }
+  html.light-theme .emo-opt, html.light-theme .tag-opt{ border-color:#e4e4e7; color:#71717a; background:#fafafa; }
   html.light-theme .filter-chip{ border-color:#e4e4e7; color:#71717a; background:#fafafa; }
   html.light-theme .badge-BE{ background:#e4e4e7; color:#52525b; }
   html.light-theme .toast{ background:#ffffff; color:#18181b; }
@@ -319,6 +322,9 @@
       <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="calendar">
         <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Calendrier
       </div>
+      <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="review">
+        <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Review
+      </div>
       <div class="nav-tab flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm cursor-pointer transition-colors" data-tab="form">
         <span class="nav-dot h-1.5 w-1.5 rounded-full bg-zinc-600"></span>Nouveau Trade
       </div>
@@ -347,6 +353,14 @@
             <button id="btnAddAccount" class="rounded bg-blue-500 px-2.5 text-xs text-white shrink-0">+</button>
           </div>
           <div id="accountList" class="flex flex-col gap-1"></div>
+        </div>
+      </div>
+      <div class="rounded-md border border-zinc-800 bg-zinc-900/50 p-2.5">
+        <button id="btnToggleRules" class="mb-2 text-[10px] uppercase tracking-wide text-zinc-500 hover:text-white">Règles de risque</button>
+        <div id="riskRulesPanel" class="grid grid-cols-3 gap-1.5" style="display:none;">
+          <input id="rule-max-risk" type="number" step="any" class="min-w-0 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-[10px] text-white mono" title="Risque max par trade" placeholder="Risk %" value="1">
+          <input id="rule-max-daily-loss" type="number" step="any" class="min-w-0 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-[10px] text-white mono" title="Perte journalière max en R" placeholder="Max -R" value="2">
+          <input id="rule-max-trades" type="number" step="1" class="min-w-0 rounded border border-zinc-800 bg-zinc-950 px-2 py-1 text-[10px] text-white mono" title="Trades max par jour" placeholder="Trades" value="3">
         </div>
       </div>
       <div class="theme-toggle flex rounded-md border border-zinc-800 overflow-hidden" id="themeToggle">
@@ -454,6 +468,23 @@
             <span><span class="inline-block w-2.5 h-2.5 rounded-sm mr-1.5" style="background:rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4);"></span>Jour positif</span>
             <span><span class="inline-block w-2.5 h-2.5 rounded-sm mr-1.5" style="background:rgba(248,113,113,.15); border:1px solid rgba(248,113,113,.4);"></span>Jour négatif</span>
             <span><span class="inline-block w-2.5 h-2.5 rounded-sm mr-1.5 border border-zinc-800" style="background:#0a0a0a;"></span>Pas de trade</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- REVIEW -->
+      <div class="panel" id="panel-review">
+        <div class="grid grid-cols-3 gap-4" id="reviewStats"></div>
+        <div class="mt-4 grid grid-cols-2 gap-4">
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-1">Review du jour</h3>
+            <p class="text-xs text-zinc-500 mb-4">Résumé automatique de la journée actuelle</p>
+            <div id="dailyReview" class="space-y-2 text-sm"></div>
+          </div>
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <h3 class="text-sm font-semibold text-white mb-1">Review de la semaine</h3>
+            <p class="text-xs text-zinc-500 mb-4">Ce qu'il faut corriger en priorité</p>
+            <div id="weeklyReview" class="space-y-2 text-sm"></div>
           </div>
         </div>
       </div>
@@ -580,6 +611,20 @@
           </div>
 
           <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+            <div class="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-1">Grade & tags</h3>
+                <p class="text-xs text-zinc-500">Marque tes erreurs et points forts pour trouver ce qui te coûte le plus.</p>
+              </div>
+              <div id="tradeGradePreview" class="mono rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-bold text-white">—/100</div>
+            </div>
+            <div class="mb-3 text-[10px] uppercase tracking-wide text-zinc-500 font-medium">Erreurs</div>
+            <div class="flex gap-2 flex-wrap mb-4" id="f-error-tags"></div>
+            <div class="mb-3 text-[10px] uppercase tracking-wide text-zinc-500 font-medium">Points forts</div>
+            <div class="flex gap-2 flex-wrap" id="f-positive-tags"></div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
             <h3 class="mono text-[10px] uppercase tracking-widest text-blue-400 mb-4">Observation</h3>
             <div class="grid grid-cols-3 gap-4">
               <div class="field col-span-2"><label class="text-[10px] uppercase tracking-wide text-zinc-500 font-medium mb-1.5 block">Observation</label>
@@ -617,7 +662,7 @@
             <thead>
               <tr class="border-b border-zinc-800 text-left text-[10px] uppercase tracking-wide text-zinc-500">
                 <th class="px-4 py-3 font-medium whitespace-nowrap">Date</th><th class="px-4 py-3 font-medium whitespace-nowrap">Type</th><th class="px-4 py-3 font-medium whitespace-nowrap">Pair</th><th class="px-4 py-3 font-medium whitespace-nowrap">Pos</th><th class="px-4 py-3 font-medium whitespace-nowrap">Session</th><th class="px-4 py-3 font-medium whitespace-nowrap">DOL</th>
-                <th class="px-4 py-3 font-medium whitespace-nowrap">Confluence</th><th class="px-4 py-3 font-medium whitespace-nowrap">R</th><th class="px-4 py-3 font-medium whitespace-nowrap">Émotion</th><th class="px-4 py-3 font-medium whitespace-nowrap">Résultat</th><th class="px-4 py-3"></th><th class="px-4 py-3"></th>
+                <th class="px-4 py-3 font-medium whitespace-nowrap">Confluence</th><th class="px-4 py-3 font-medium whitespace-nowrap">Grade</th><th class="px-4 py-3 font-medium whitespace-nowrap">R</th><th class="px-4 py-3 font-medium whitespace-nowrap">Tags</th><th class="px-4 py-3 font-medium whitespace-nowrap">Émotion</th><th class="px-4 py-3 font-medium whitespace-nowrap">Résultat</th><th class="px-4 py-3"></th><th class="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody id="journalBody"></tbody>
@@ -751,12 +796,18 @@ let currentType = 'Backtest';
 let currentEmotion = null;
 let currentConfluence = { sweep:false, mss:false, displacement:false, planRespecte:false };
 let currentScreenshots = [];
+let currentErrorTags = [];
+let currentPositiveTags = [];
+let riskRules = { maxRiskPct:1, maxDailyLossR:2, maxTradesPerDay:3 };
+const errorTagOptions = ['FOMO','Entrée trop tôt','Pas de confirmation','Revenge trade','SL mal placé','TP coupé trop tôt','Sur-trading','Mauvaise session','Hors plan'];
+const positiveTagOptions = ['Patience','Plan parfait','Bonne exécution','Bon management','Sortie propre','Emotion maîtrisée'];
 let charts = {};
 let calDate = new Date();
 
 const pageTitles = {
   dashboard: ['Dashboard', "Vue d'ensemble de ta performance"],
   calendar: ['Calendrier', 'Ta performance jour par jour'],
+  review: ['Review', 'Bilan automatique de tes erreurs et règles'],
   form: ['Nouveau Trade', 'Enregistre un trade backtest ou live'],
   journal: ['Journal', 'Historique complet de tes trades'],
   gallery: ['Galerie', 'Bibliothèque visuelle de tes patterns (MSS, DOL, FVG...)'],
@@ -776,6 +827,7 @@ function goToTab(name){
   if(name==='dashboard') renderDashboard();
   if(name==='journal') renderJournal();
   if(name==='calendar') renderCalendar();
+  if(name==='review') renderReview();
   if(name==='playbooks') renderPlaybooks();
   if(name==='gallery') renderGallery();
   if(name==='notes') renderNotes();
@@ -803,7 +855,7 @@ function scheduleAutoSave(){
 async function writeToConnectedFile(){
   if(!fileHandle) return;
   try{
-    const payload = { trades, playbooks, notes, galleryItems, accounts };
+    const payload = { trades, playbooks, notes, galleryItems, accounts, riskRules };
     const writable = await fileHandle.createWritable();
     await writable.write(JSON.stringify(payload, null, 2));
     await writable.close();
@@ -836,12 +888,16 @@ document.getElementById('btnConnectFile').addEventListener('click', async ()=>{
         trades = existing.trades.map(t=>({
           ...t,
           account: t.account || 'default',
-          screenshots: t.screenshots ? t.screenshots : (t.screenshot ? [t.screenshot] : [])
+          screenshots: t.screenshots ? t.screenshots : (t.screenshot ? [t.screenshot] : []),
+          errorTags: t.errorTags || [],
+          positiveTags: t.positiveTags || [],
+          grade: t.grade ?? computeTradeGrade(t)
         }));
         if(existing.playbooks && existing.playbooks.length) playbooks = existing.playbooks;
         if(existing.notes) notes = existing.notes;
         if(existing.galleryItems) galleryItems = existing.galleryItems;
         if(existing.accounts && existing.accounts.length) accounts = existing.accounts;
+        if(existing.riskRules) riskRules = {...riskRules, ...existing.riskRules};
         refreshStrategySelect();
       }
     }
@@ -915,6 +971,7 @@ document.getElementById('accountSelector').addEventListener('change', e=>{
     if(name==='dashboard') renderDashboard();
     if(name==='journal') renderJournal();
     if(name==='calendar') renderCalendar();
+    if(name==='review') renderReview();
     if(name==='playbooks') renderPlaybooks();
   }
 });
@@ -945,6 +1002,90 @@ function deleteAccount(id){
   toast('Compte supprimé');
 }
 
+
+// ---------- Trade grading, tags & risk rules ----------
+function tagChipHTML(tag, kind){
+  return `<div class="tag-opt ${kind==='positive'?'positive':''} px-3 py-1.5 rounded-full border mono text-[11px] font-medium cursor-pointer" data-tag="${tag}">${tag}</div>`;
+}
+function renderTagPickers(){
+  const err = document.getElementById('f-error-tags');
+  const pos = document.getElementById('f-positive-tags');
+  if(err) err.innerHTML = errorTagOptions.map(t=>tagChipHTML(t,'error')).join('');
+  if(pos) pos.innerHTML = positiveTagOptions.map(t=>tagChipHTML(t,'positive')).join('');
+  syncTagPickers();
+}
+function syncTagPickers(){
+  document.querySelectorAll('#f-error-tags .tag-opt').forEach(el=>el.classList.toggle('sel', currentErrorTags.includes(el.dataset.tag)));
+  document.querySelectorAll('#f-positive-tags .tag-opt').forEach(el=>el.classList.toggle('sel', currentPositiveTags.includes(el.dataset.tag)));
+  updateGradePreview();
+}
+function toggleTag(list, tag){
+  return list.includes(tag) ? list.filter(t=>t!==tag) : [...list, tag];
+}
+function emotionIsControlled(emotion, positiveTags=[]){
+  return ['Calme','Discipliné'].includes(emotion) || positiveTags.includes('Emotion maîtrisée');
+}
+function computeTradeGrade(t){
+  let score = 20;
+  if(t.confluence?.planRespecte) score += 20;
+  if(t.confluence?.sweep) score += 12;
+  if(t.confluence?.mss) score += 12;
+  if(t.confluence?.displacement) score += 12;
+  if(emotionIsControlled(t.emotion, t.positiveTags||[])) score += 8;
+  if((t.rrRatio||0) >= 2) score += 8;
+  if(t.pctRisk!=null && t.pctRisk <= riskRules.maxRiskPct) score += 8;
+  score += Math.min((t.positiveTags||[]).length * 3, 9);
+  score -= Math.min((t.errorTags||[]).length * 7, 35);
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+function gradeLabel(score){
+  if(score >= 80) return 'A+';
+  if(score >= 65) return 'B';
+  if(score >= 50) return 'C';
+  return 'D';
+}
+function updateGradePreview(){
+  const preview = document.getElementById('tradeGradePreview');
+  if(!preview) return;
+  const draft = {
+    confluence:{...currentConfluence},
+    emotion:currentEmotion,
+    rrRatio: parseFloat(document.getElementById('f-rrratio')?.value) || 0,
+    pctRisk: document.getElementById('f-pctrisk')?.value !== '' ? parseFloat(document.getElementById('f-pctrisk').value) : null,
+    errorTags:[...currentErrorTags],
+    positiveTags:[...currentPositiveTags]
+  };
+  const score = computeTradeGrade(draft);
+  preview.textContent = `${gradeLabel(score)} · ${score}/100`;
+}
+function getTradesForDate(date){
+  return getVisibleTrades().filter(t=>t.date===date);
+}
+function getRiskWarningsForDraft(date, pctRisk){
+  const dayTrades = getTradesForDate(date);
+  const dayR = dayTrades.filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
+  const warnings = [];
+  if(pctRisk!=null && pctRisk > riskRules.maxRiskPct) warnings.push(`Risk ${pctRisk}% > règle ${riskRules.maxRiskPct}%`);
+  if(dayTrades.length >= riskRules.maxTradesPerDay) warnings.push(`${dayTrades.length} trades déjà pris aujourd'hui`);
+  if(dayR <= -Math.abs(riskRules.maxDailyLossR)) warnings.push(`Perte jour ${dayR.toFixed(1)}R ≤ -${riskRules.maxDailyLossR}R`);
+  return warnings;
+}
+function refreshRiskRulesInputs(){
+  const risk = document.getElementById('rule-max-risk');
+  const loss = document.getElementById('rule-max-daily-loss');
+  const tradesMax = document.getElementById('rule-max-trades');
+  if(risk) risk.value = riskRules.maxRiskPct;
+  if(loss) loss.value = riskRules.maxDailyLossR;
+  if(tradesMax) tradesMax.value = riskRules.maxTradesPerDay;
+}
+function updateRiskRulesFromInputs(){
+  riskRules.maxRiskPct = parseFloat(document.getElementById('rule-max-risk')?.value) || 1;
+  riskRules.maxDailyLossR = parseFloat(document.getElementById('rule-max-daily-loss')?.value) || 2;
+  riskRules.maxTradesPerDay = parseInt(document.getElementById('rule-max-trades')?.value, 10) || 3;
+  scheduleAutoSave();
+  updateGradePreview();
+}
+
 // ---------- Form: type toggle ----------
 document.getElementById('f-type-toggle').addEventListener('click', e=>{
   const opt = e.target.closest('.type-opt');
@@ -969,7 +1110,27 @@ document.getElementById('f-emotion-picker').addEventListener('click', e=>{
   if(!opt) return;
   currentEmotion = (currentEmotion === opt.dataset.val) ? null : opt.dataset.val;
   document.querySelectorAll('.emo-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val===currentEmotion));
+  updateGradePreview();
 });
+
+document.getElementById('f-error-tags').addEventListener('click', e=>{
+  const opt = e.target.closest('.tag-opt');
+  if(!opt) return;
+  currentErrorTags = toggleTag(currentErrorTags, opt.dataset.tag);
+  syncTagPickers();
+});
+document.getElementById('f-positive-tags').addEventListener('click', e=>{
+  const opt = e.target.closest('.tag-opt');
+  if(!opt) return;
+  currentPositiveTags = toggleTag(currentPositiveTags, opt.dataset.tag);
+  syncTagPickers();
+});
+['f-rrratio','f-pctrisk'].forEach(id=>document.getElementById(id).addEventListener('input', updateGradePreview));
+document.getElementById('btnToggleRules').addEventListener('click', ()=>{
+  const panel = document.getElementById('riskRulesPanel');
+  panel.style.display = panel.style.display === 'none' ? 'grid' : 'none';
+});
+['rule-max-risk','rule-max-daily-loss','rule-max-trades'].forEach(id=>document.getElementById(id).addEventListener('input', updateRiskRulesFromInputs));
 
 // ---------- Form: confluence toggles ----------
 document.getElementById('f-confluence').addEventListener('click', e=>{
@@ -978,6 +1139,7 @@ document.getElementById('f-confluence').addEventListener('click', e=>{
   const key = item.dataset.key;
   currentConfluence[key] = !currentConfluence[key];
   item.classList.toggle('on', currentConfluence[key]);
+  updateGradePreview();
 });
 
 // ---------- Form: screenshot ----------
@@ -1047,8 +1209,14 @@ document.getElementById('btnSaveTrade').addEventListener('click', ()=>{
     emotion: currentEmotion,
     confluence: {...currentConfluence},
     notes: document.getElementById('f-notes').value.trim(),
-    screenshots: [...currentScreenshots]
+    screenshots: [...currentScreenshots],
+    errorTags: [...currentErrorTags],
+    positiveTags: [...currentPositiveTags]
   };
+  trade.grade = computeTradeGrade(trade);
+
+  const warnings = getRiskWarningsForDraft(trade.date, trade.pctRisk);
+  if(warnings.length && !confirm('Alerte discipline :\n- '+warnings.join('\n- ')+'\n\nEnregistrer quand même ?')) return;
 
   if(editingId){
     const idx = trades.findIndex(t=>t.id===editingId);
@@ -1092,6 +1260,9 @@ function resetForm(){
   currentConfluence = { sweep:false, mss:false, displacement:false, planRespecte:false };
   document.querySelectorAll('.checklist-item').forEach(c=>c.classList.remove('on'));
   currentScreenshots = [];
+  currentErrorTags = [];
+  currentPositiveTags = [];
+  syncTagPickers();
   renderScreenshotGallery();
   document.getElementById('f-screenshot').value = '';
 }
@@ -1130,6 +1301,9 @@ function loadTradeIntoForm(id){
   currentConfluence = {...t.confluence};
   document.querySelectorAll('.checklist-item').forEach(c=>c.classList.toggle('on', currentConfluence[c.dataset.key]));
   currentScreenshots = t.screenshots ? [...t.screenshots] : (t.screenshot ? [t.screenshot] : []);
+  currentErrorTags = t.errorTags ? [...t.errorTags] : [];
+  currentPositiveTags = t.positiveTags ? [...t.positiveTags] : [];
+  syncTagPickers();
   renderScreenshotGallery();
   goToTab('form');
 }
@@ -1184,7 +1358,9 @@ function renderJournal(){
         <div class="dot h-1.5 w-1.5 rounded-full ${t.confluence.mss?'on':''}" title="MSS"></div>
         <div class="dot h-1.5 w-1.5 rounded-full ${t.confluence.displacement?'on':''}" title="Displacement"></div>
       </div></td>
+      <td class="px-4 py-3 mono text-xs font-bold whitespace-nowrap">${gradeLabel(t.grade ?? computeTradeGrade(t))} · ${t.grade ?? computeTradeGrade(t)}</td>
       <td class="px-4 py-3 mono text-xs whitespace-nowrap">${t.rMultiple!=null ? (t.rMultiple>0?'+':'')+t.rMultiple.toFixed(2)+'R' : '—'}</td>
+      <td class="px-4 py-3 whitespace-nowrap">${(t.errorTags&&t.errorTags.length) ? `<span class="mono text-[10px] text-amber-400">${t.errorTags.slice(0,2).join(', ')}</span>` : '<span class="text-zinc-700">—</span>'}</td>
       <td class="px-4 py-3 whitespace-nowrap">${t.emotion ? `<span class="rounded-full px-2 py-0.5 text-[11px] font-medium emotion-pill-${t.emotion}">${t.emotion}</span>` : '<span class="text-zinc-700">—</span>'}</td>
       <td class="px-4 py-3 whitespace-nowrap"><span class="badge badge-${t.result} mono text-[10px] font-bold px-2 py-0.5 rounded-full">${t.result}</span></td>
       <td class="px-4 py-3 whitespace-nowrap">${(t.screenshots&&t.screenshots.length) ? `<span class="mono text-[10px] text-zinc-500">🖼 ${t.screenshots.length}</span>` : ''}</td>
@@ -1209,6 +1385,32 @@ function statCardHTML(label, value, accentBg, accentText, sub){
         ${sub ? `<span class="text-xs text-zinc-500">${sub}</span>` : ''}
       </div>
     </div>`;
+}
+
+
+function tagCostSummary(list){
+  const map = {};
+  list.forEach(t=>{
+    (t.errorTags||[]).forEach(tag=>{
+      if(!map[tag]) map[tag] = { count:0, r:0 };
+      map[tag].count++;
+      map[tag].r += t.rMultiple || 0;
+    });
+  });
+  return Object.entries(map).sort((a,b)=>a[1].r-b[1].r);
+}
+function bestWorstSummary(list, field){
+  const map = {};
+  list.forEach(t=>{
+    const key = t[field] || '—';
+    if(!map[key]) map[key] = { count:0, r:0 };
+    map[key].count++;
+    map[key].r += t.rMultiple || 0;
+  });
+  return Object.entries(map).sort((a,b)=>b[1].r-a[1].r);
+}
+function reviewLine(label, value, tone='text-zinc-300'){
+  return `<div class="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2"><span class="text-zinc-500">${label}</span><b class="mono ${tone}">${value}</b></div>`;
 }
 
 function renderDashboard(){
@@ -1250,6 +1452,26 @@ function renderDashboard(){
     statCardHTML('Plan respecté', planRate.toFixed(0)+'%', 'bg-amber-500/10', 'text-amber-400') +
     statCardHTML('Trades total', String(visible.length), 'bg-zinc-800', 'text-zinc-400') +
     statCardHTML('Trades clôturés', String(closed.length), 'bg-zinc-800', 'text-zinc-400');
+
+  let thirdRow = document.getElementById('statsGrid3');
+  if(!thirdRow){
+    thirdRow = document.createElement('div');
+    thirdRow.id = 'statsGrid3';
+    thirdRow.className = 'grid grid-cols-4 gap-4 mt-4';
+    secondRow.insertAdjacentElement('afterend', thirdRow);
+  }
+  const graded = visible.map(t=>t.grade ?? computeTradeGrade(t));
+  const avgGrade = graded.length ? graded.reduce((a,b)=>a+b,0)/graded.length : 0;
+  const aPlus = visible.filter(t=>(t.grade ?? computeTradeGrade(t))>=80).length;
+  const tagCosts = tagCostSummary(closed);
+  const worstTag = tagCosts.length ? `${tagCosts[0][0]} (${tagCosts[0][1].r.toFixed(1)}R)` : '—';
+  const today = new Date().toISOString().slice(0,10);
+  const todayR = getTradesForDate(today).filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
+  thirdRow.innerHTML =
+    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400', avgGrade>=80?'A+':avgGrade>=65?'B':avgGrade>=50?'C':'D') +
+    statCardHTML('Trades A+', String(aPlus), 'bg-emerald-500/10', 'text-emerald-400') +
+    statCardHTML('Erreur coûteuse', worstTag, 'bg-red-500/10', 'text-red-400') +
+    statCardHTML('R du jour', (todayR>=0?'+':'')+todayR.toFixed(1)+'R', todayR>=0?'bg-emerald-500/10':'bg-red-500/10', todayR>=0?'text-emerald-400':'text-red-400');
 
   const sorted = [...closed].filter(t=>t.rMultiple!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
   let cum = 0;
@@ -1311,6 +1533,38 @@ function renderChart(canvasId, type, data, options){
   const ctx = document.getElementById(canvasId).getContext('2d');
   if(charts[canvasId]) charts[canvasId].destroy();
   charts[canvasId] = new Chart(ctx, { type, data, options: {responsive:true, maintainAspectRatio:false, ...options} });
+}
+
+
+// ---------- Review ----------
+function renderReview(){
+  scheduleAutoSave();
+  const visible = getVisibleTrades();
+  const closed = visible.filter(t=>t.result==='Win'||t.result==='Loss'||t.result==='BE');
+  const today = new Date().toISOString().slice(0,10);
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - ((now.getDay()+6)%7));
+  weekStart.setHours(0,0,0,0);
+  const thisWeek = closed.filter(t=>new Date(t.date) >= weekStart);
+  const todayTrades = visible.filter(t=>t.date===today);
+  const sumR = arr => arr.filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+  const avgGrade = avg(visible.map(t=>t.grade ?? computeTradeGrade(t)));
+  const worstTags = tagCostSummary(closed);
+  const bestSessions = bestWorstSummary(closed, 'session');
+  document.getElementById('reviewStats').innerHTML =
+    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400') +
+    statCardHTML('Erreur #1', worstTags.length?worstTags[0][0]:'—', 'bg-red-500/10', 'text-red-400') +
+    statCardHTML('Meilleure session', bestSessions.length?bestSessions[0][0]:'—', 'bg-emerald-500/10', 'text-emerald-400');
+  document.getElementById('dailyReview').innerHTML =
+    reviewLine('Trades aujourd\'hui', todayTrades.length) +
+    reviewLine('Résultat du jour', (sumR(todayTrades)>=0?'+':'')+sumR(todayTrades).toFixed(1)+'R', sumR(todayTrades)>=0?'text-emerald-400':'text-red-400') +
+    reviewLine('Alerte règles', getRiskWarningsForDraft(today, null).join(' · ') || 'OK', getRiskWarningsForDraft(today, null).length?'text-amber-400':'text-emerald-400');
+  document.getElementById('weeklyReview').innerHTML =
+    reviewLine('Trades semaine', thisWeek.length) +
+    reviewLine('R semaine', (sumR(thisWeek)>=0?'+':'')+sumR(thisWeek).toFixed(1)+'R', sumR(thisWeek)>=0?'text-emerald-400':'text-red-400') +
+    reviewLine('Erreur à corriger', worstTags.length?`${worstTags[0][0]} (${worstTags[0][1].r.toFixed(1)}R)`:'—', worstTags.length?'text-amber-400':'text-zinc-300');
 }
 
 // ---------- Calendar ----------
@@ -1575,7 +1829,7 @@ function renderGallery(){
 
 // ---------- Import / Export ----------
 document.getElementById('btnExport').addEventListener('click', ()=>{
-  const payload = { trades, playbooks, notes, galleryItems, accounts };
+  const payload = { trades, playbooks, notes, galleryItems, accounts, riskRules };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -1616,6 +1870,8 @@ document.getElementById('fileImport').addEventListener('change', e=>{
       if(importedNotes) notes = importedNotes;
       if(importedGallery) galleryItems = importedGallery;
       if(importedAccounts && importedAccounts.length) accounts = importedAccounts;
+      if(imported.riskRules) riskRules = {...riskRules, ...imported.riskRules};
+      refreshRiskRulesInputs();
       refreshStrategySelect();
       refreshAccountSelects();
       goToTab('dashboard');
@@ -1755,7 +2011,7 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
           if(signal!=null) result = signal>0 ? 'Win' : (signal<0 ? 'Loss' : 'BE');
         }
 
-        trades.push({
+        const importedTrade = {
           id: Date.now().toString(36)+Math.random().toString(36).slice(2,7)+added,
           type:'Backtest',
           account: defaultAccount,
@@ -1780,8 +2036,12 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
             displacement: toBool(m.displacement), planRespecte: toBool(m.planRespecte)
           },
           notes: m.notes ? String(m.notes).trim() : '',
-          screenshots: []
-        });
+          screenshots: [],
+          errorTags: [],
+          positiveTags: []
+        };
+        importedTrade.grade = computeTradeGrade(importedTrade);
+        trades.push(importedTrade);
         added++;
       });
 
@@ -1798,6 +2058,8 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
 
 // ---------- Init ----------
 document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+renderTagPickers();
+refreshRiskRulesInputs();
 refreshStrategySelect();
 refreshAccountSelects();
 renderJournal();
