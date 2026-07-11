@@ -149,6 +149,7 @@
   }
   #statsGrid > div::after, #statsGrid2 > div::after{
     content:"";
+    pointer-events:none;
     position:absolute;
     inset:auto -20% -45% 38%;
     height:90px;
@@ -217,6 +218,7 @@
   }
   .hero-card::before{
     content:"";
+    pointer-events:none;
     position:absolute;
     inset:-35% auto auto 58%;
     width:360px;
@@ -1193,6 +1195,7 @@ document.getElementById('f-emotion-picker').addEventListener('click', e=>{
   document.querySelectorAll('.emo-opt').forEach(o=>o.classList.toggle('sel', o.dataset.val===currentEmotion));
   updateGradePreview();
 });
+['rule-max-risk','rule-max-daily-loss','rule-max-trades'].forEach(id=>document.getElementById(id).addEventListener('input', updateRiskRulesFromInputs));
 
 document.getElementById('f-error-tags').addEventListener('click', e=>{
   const opt = e.target.closest('.tag-opt');
@@ -1593,26 +1596,6 @@ function renderDashboard(){
     statCardHTML('Erreur coûteuse', worstTag, 'bg-red-500/10', 'text-red-400') +
     statCardHTML('R du jour', (todayR>=0?'+':'')+todayR.toFixed(1)+'R', todayR>=0?'bg-emerald-500/10':'bg-red-500/10', todayR>=0?'text-emerald-400':'text-red-400');
 
-  let thirdRow = document.getElementById('statsGrid3');
-  if(!thirdRow){
-    thirdRow = document.createElement('div');
-    thirdRow.id = 'statsGrid3';
-    thirdRow.className = 'grid grid-cols-4 gap-4 mt-4';
-    secondRow.insertAdjacentElement('afterend', thirdRow);
-  }
-  const graded = visible.map(t=>t.grade ?? computeTradeGrade(t));
-  const avgGrade = graded.length ? graded.reduce((a,b)=>a+b,0)/graded.length : 0;
-  const aPlus = visible.filter(t=>(t.grade ?? computeTradeGrade(t))>=80).length;
-  const tagCosts = tagCostSummary(closed);
-  const worstTag = tagCosts.length ? `${tagCosts[0][0]} (${tagCosts[0][1].r.toFixed(1)}R)` : '—';
-  const today = new Date().toISOString().slice(0,10);
-  const todayR = getTradesForDate(today).filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
-  thirdRow.innerHTML =
-    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400', avgGrade>=80?'A+':avgGrade>=65?'B':avgGrade>=50?'C':'D') +
-    statCardHTML('Trades A+', String(aPlus), 'bg-emerald-500/10', 'text-emerald-400') +
-    statCardHTML('Erreur coûteuse', worstTag, 'bg-red-500/10', 'text-red-400') +
-    statCardHTML('R du jour', (todayR>=0?'+':'')+todayR.toFixed(1)+'R', todayR>=0?'bg-emerald-500/10':'bg-red-500/10', todayR>=0?'text-emerald-400':'text-red-400');
-
   const sorted = [...closed].filter(t=>t.rMultiple!=null).sort((a,b)=>new Date(a.date)-new Date(b.date));
   let cum = 0;
   const equityData = sorted.map(t=>{ cum += t.rMultiple; return cum; });
@@ -1686,9 +1669,48 @@ function renderDashboard(){
 }
 
 function renderChart(canvasId, type, data, options){
-  const ctx = document.getElementById(canvasId).getContext('2d');
-  if(charts[canvasId]) charts[canvasId].destroy();
-  charts[canvasId] = new Chart(ctx, { type, data, options: {responsive:true, maintainAspectRatio:false, ...options} });
+  const canvas = document.getElementById(canvasId);
+  if(!canvas || typeof Chart === 'undefined') return;
+  try{
+    const ctx = canvas.getContext('2d');
+    if(!ctx) return;
+    if(charts[canvasId]) charts[canvasId].destroy();
+    charts[canvasId] = new Chart(ctx, { type, data, options: {responsive:true, maintainAspectRatio:false, ...options} });
+  }catch(err){
+    console.warn(`Graphique ${canvasId} ignoré`, err);
+  }
+}
+
+
+// ---------- Review ----------
+function renderReview(){
+  scheduleAutoSave();
+  const visible = getVisibleTrades();
+  const closed = visible.filter(t=>t.result==='Win'||t.result==='Loss'||t.result==='BE');
+  const today = new Date().toISOString().slice(0,10);
+  const now = new Date();
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - ((now.getDay()+6)%7));
+  weekStart.setHours(0,0,0,0);
+  const thisWeek = closed.filter(t=>new Date(t.date) >= weekStart);
+  const todayTrades = visible.filter(t=>t.date===today);
+  const sumR = arr => arr.filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
+  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
+  const avgGrade = avg(visible.map(t=>t.grade ?? computeTradeGrade(t)));
+  const worstTags = tagCostSummary(closed);
+  const bestSessions = bestWorstSummary(closed, 'session');
+  document.getElementById('reviewStats').innerHTML =
+    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400') +
+    statCardHTML('Erreur #1', worstTags.length?worstTags[0][0]:'—', 'bg-red-500/10', 'text-red-400') +
+    statCardHTML('Meilleure session', bestSessions.length?bestSessions[0][0]:'—', 'bg-emerald-500/10', 'text-emerald-400');
+  document.getElementById('dailyReview').innerHTML =
+    reviewLine('Trades aujourd\'hui', todayTrades.length) +
+    reviewLine('Résultat du jour', (sumR(todayTrades)>=0?'+':'')+sumR(todayTrades).toFixed(1)+'R', sumR(todayTrades)>=0?'text-emerald-400':'text-red-400') +
+    reviewLine('Alerte règles', getRiskWarningsForDraft(today, null).join(' · ') || 'OK', getRiskWarningsForDraft(today, null).length?'text-amber-400':'text-emerald-400');
+  document.getElementById('weeklyReview').innerHTML =
+    reviewLine('Trades semaine', thisWeek.length) +
+    reviewLine('R semaine', (sumR(thisWeek)>=0?'+':'')+sumR(thisWeek).toFixed(1)+'R', sumR(thisWeek)>=0?'text-emerald-400':'text-red-400') +
+    reviewLine('Erreur à corriger', worstTags.length?`${worstTags[0][0]} (${worstTags[0][1].r.toFixed(1)}R)`:'—', worstTags.length?'text-amber-400':'text-zinc-300');
 }
 
 
@@ -2230,13 +2252,17 @@ document.getElementById('fileImportExcel').addEventListener('change', e=>{
 });
 
 // ---------- Init ----------
-document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
-renderTagPickers();
-refreshRiskRulesInputs();
-refreshStrategySelect();
-refreshAccountSelects();
-renderJournal();
-renderDashboard();
+function safeCall(label, fn){
+  try{ fn(); }
+  catch(err){ console.error(`${label} failed`, err); }
+}
+safeCall('init date', ()=>{ document.getElementById('f-date').value = new Date().toISOString().slice(0,10); });
+safeCall('tag pickers', renderTagPickers);
+safeCall('risk rules', refreshRiskRulesInputs);
+safeCall('strategies', refreshStrategySelect);
+safeCall('accounts', refreshAccountSelects);
+safeCall('journal', renderJournal);
+safeCall('dashboard', renderDashboard);
 </script>
 </body>
 </html>
