@@ -1681,70 +1681,6 @@ function renderChart(canvasId, type, data, options){
   }
 }
 
-
-// ---------- Review ----------
-function renderReview(){
-  scheduleAutoSave();
-  const visible = getVisibleTrades();
-  const closed = visible.filter(t=>t.result==='Win'||t.result==='Loss'||t.result==='BE');
-  const today = new Date().toISOString().slice(0,10);
-  const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - ((now.getDay()+6)%7));
-  weekStart.setHours(0,0,0,0);
-  const thisWeek = closed.filter(t=>new Date(t.date) >= weekStart);
-  const todayTrades = visible.filter(t=>t.date===today);
-  const sumR = arr => arr.filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
-  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
-  const avgGrade = avg(visible.map(t=>t.grade ?? computeTradeGrade(t)));
-  const worstTags = tagCostSummary(closed);
-  const bestSessions = bestWorstSummary(closed, 'session');
-  document.getElementById('reviewStats').innerHTML =
-    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400') +
-    statCardHTML('Erreur #1', worstTags.length?worstTags[0][0]:'—', 'bg-red-500/10', 'text-red-400') +
-    statCardHTML('Meilleure session', bestSessions.length?bestSessions[0][0]:'—', 'bg-emerald-500/10', 'text-emerald-400');
-  document.getElementById('dailyReview').innerHTML =
-    reviewLine('Trades aujourd\'hui', todayTrades.length) +
-    reviewLine('Résultat du jour', (sumR(todayTrades)>=0?'+':'')+sumR(todayTrades).toFixed(1)+'R', sumR(todayTrades)>=0?'text-emerald-400':'text-red-400') +
-    reviewLine('Alerte règles', getRiskWarningsForDraft(today, null).join(' · ') || 'OK', getRiskWarningsForDraft(today, null).length?'text-amber-400':'text-emerald-400');
-  document.getElementById('weeklyReview').innerHTML =
-    reviewLine('Trades semaine', thisWeek.length) +
-    reviewLine('R semaine', (sumR(thisWeek)>=0?'+':'')+sumR(thisWeek).toFixed(1)+'R', sumR(thisWeek)>=0?'text-emerald-400':'text-red-400') +
-    reviewLine('Erreur à corriger', worstTags.length?`${worstTags[0][0]} (${worstTags[0][1].r.toFixed(1)}R)`:'—', worstTags.length?'text-amber-400':'text-zinc-300');
-}
-
-
-// ---------- Review ----------
-function renderReview(){
-  scheduleAutoSave();
-  const visible = getVisibleTrades();
-  const closed = visible.filter(t=>t.result==='Win'||t.result==='Loss'||t.result==='BE');
-  const today = new Date().toISOString().slice(0,10);
-  const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - ((now.getDay()+6)%7));
-  weekStart.setHours(0,0,0,0);
-  const thisWeek = closed.filter(t=>new Date(t.date) >= weekStart);
-  const todayTrades = visible.filter(t=>t.date===today);
-  const sumR = arr => arr.filter(t=>t.rMultiple!=null).reduce((s,t)=>s+t.rMultiple,0);
-  const avg = arr => arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0;
-  const avgGrade = avg(visible.map(t=>t.grade ?? computeTradeGrade(t)));
-  const worstTags = tagCostSummary(closed);
-  const bestSessions = bestWorstSummary(closed, 'session');
-  document.getElementById('reviewStats').innerHTML =
-    statCardHTML('Score moyen', avgGrade.toFixed(0)+'/100', 'bg-blue-500/10', 'text-blue-400') +
-    statCardHTML('Erreur #1', worstTags.length?worstTags[0][0]:'—', 'bg-red-500/10', 'text-red-400') +
-    statCardHTML('Meilleure session', bestSessions.length?bestSessions[0][0]:'—', 'bg-emerald-500/10', 'text-emerald-400');
-  document.getElementById('dailyReview').innerHTML =
-    reviewLine('Trades aujourd\'hui', todayTrades.length) +
-    reviewLine('Résultat du jour', (sumR(todayTrades)>=0?'+':'')+sumR(todayTrades).toFixed(1)+'R', sumR(todayTrades)>=0?'text-emerald-400':'text-red-400') +
-    reviewLine('Alerte règles', getRiskWarningsForDraft(today, null).join(' · ') || 'OK', getRiskWarningsForDraft(today, null).length?'text-amber-400':'text-emerald-400');
-  document.getElementById('weeklyReview').innerHTML =
-    reviewLine('Trades semaine', thisWeek.length) +
-    reviewLine('R semaine', (sumR(thisWeek)>=0?'+':'')+sumR(thisWeek).toFixed(1)+'R', sumR(thisWeek)>=0?'text-emerald-400':'text-red-400') +
-    reviewLine('Erreur à corriger', worstTags.length?`${worstTags[0][0]} (${worstTags[0][1].r.toFixed(1)}R)`:'—', worstTags.length?'text-amber-400':'text-zinc-300');
-}
-
 // ---------- Calendar ----------
 document.getElementById('calPrev').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
 document.getElementById('calNext').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
@@ -2256,13 +2192,11 @@ function safeCall(label, fn){
   try{ fn(); }
   catch(err){ console.error(`${label} failed`, err); }
 }
-safeCall('init date', ()=>{ document.getElementById('f-date').value = new Date().toISOString().slice(0,10); });
-safeCall('tag pickers', renderTagPickers);
-safeCall('risk rules', refreshRiskRulesInputs);
-safeCall('strategies', refreshStrategySelect);
-safeCall('accounts', refreshAccountSelects);
-safeCall('journal', renderJournal);
-safeCall('dashboard', renderDashboard);
+safeCall('date init', ()=>{ document.getElementById('f-date').value = new Date().toISOString().slice(0,10); });
+safeCall('strategies init', refreshStrategySelect);
+safeCall('accounts init', refreshAccountSelects);
+safeCall('journal init', renderJournal);
+safeCall('dashboard init', renderDashboard);
 </script>
 </body>
 </html>
