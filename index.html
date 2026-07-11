@@ -11,10 +11,37 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-  :root{ --mono:'JetBrains Mono', monospace; }
+  :root{
+    --mono:'JetBrains Mono', monospace;
+    --bg:#05070d;
+    --panel:#0d111b;
+    --panel-soft:rgba(15,23,42,.72);
+    --border:rgba(148,163,184,.16);
+    --muted:#94a3b8;
+    --brand:#3b82f6;
+    --brand-2:#06b6d4;
+    --amber:#f59e0b;
+    color-scheme:dark;
+  }
   *{ font-family:'Inter', sans-serif; }
   .mono{ font-family:var(--mono); }
-  body{ background:#000; }
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(circle at top left, rgba(59,130,246,.20), transparent 34rem),
+      radial-gradient(circle at 78% 8%, rgba(6,182,212,.13), transparent 28rem),
+      radial-gradient(circle at bottom right, rgba(245,158,11,.09), transparent 34rem),
+      var(--bg);
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    background-image:linear-gradient(rgba(255,255,255,.026) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.026) 1px, transparent 1px);
+    background-size:42px 42px;
+    mask-image:linear-gradient(to bottom, rgba(0,0,0,.75), transparent 70%);
+  }
   ::-webkit-scrollbar{width:9px; height:9px;}
   ::-webkit-scrollbar-thumb{background:#27272a; border-radius:6px;}
   ::-webkit-scrollbar-track{background:#000;}
@@ -94,10 +121,127 @@
   .field input::placeholder, .field textarea::placeholder{ color:#52525b; }
 
   /* ============ LIGHT THEME OVERRIDES ============ */
-  html.light-theme body{ background:#f7f7f8; }
+
+  /* ============ POLISHED UI LAYER ============ */
+  aside.bg-zinc-950{
+    background:linear-gradient(180deg, rgba(9,14,24,.96), rgba(5,7,13,.92)) !important;
+    box-shadow:inset -1px 0 0 rgba(255,255,255,.04);
+    backdrop-filter:blur(18px);
+  }
+  header{
+    background:linear-gradient(90deg, rgba(8,13,23,.78), rgba(8,13,23,.46));
+    backdrop-filter:blur(18px);
+  }
+  main{ scroll-behavior:smooth; }
+  .rounded-xl.border{
+    border-color:var(--border) !important;
+    background:linear-gradient(180deg, rgba(15,23,42,.78), rgba(9,14,24,.76)) !important;
+    box-shadow:0 18px 45px rgba(0,0,0,.24), inset 0 1px 0 rgba(255,255,255,.045);
+    backdrop-filter:blur(14px);
+  }
+  #statsGrid > div, #statsGrid2 > div{
+    position:relative;
+    overflow:hidden;
+    transition:transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  #statsGrid > div::after, #statsGrid2 > div::after{
+    content:"";
+    position:absolute;
+    inset:auto -20% -45% 38%;
+    height:90px;
+    background:radial-gradient(circle, rgba(59,130,246,.20), transparent 68%);
+  }
+  #statsGrid > div:hover, #statsGrid2 > div:hover, #playbookGrid > div:hover, #notesGrid > div:hover, #galleryGrid > div:hover{
+    transform:translateY(-2px);
+    border-color:rgba(96,165,250,.38) !important;
+    box-shadow:0 22px 55px rgba(0,0,0,.32), 0 0 0 1px rgba(59,130,246,.08) inset;
+  }
+  .nav-tab{
+    border:1px solid transparent;
+    position:relative;
+  }
+  .nav-tab.active{
+    background:linear-gradient(90deg, rgba(59,130,246,.18), rgba(6,182,212,.08)) !important;
+    border-color:rgba(96,165,250,.22);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+  }
+  .nav-tab.active::before{
+    content:"";
+    position:absolute;
+    left:-17px;
+    top:8px;
+    bottom:8px;
+    width:3px;
+    border-radius:99px;
+    background:linear-gradient(#60a5fa,#06b6d4);
+  }
+  button, .filter-chip, .type-opt, .theme-opt, .result-opt, .emo-opt, .checklist-item{
+    transition:transform .15s ease, border-color .15s ease, background .15s ease, color .15s ease, box-shadow .15s ease;
+  }
+  button:hover, .filter-chip:hover, .type-opt:hover, .theme-opt:hover, .result-opt:hover, .emo-opt:hover{ transform:translateY(-1px); }
+  .bg-blue-500{
+    background:linear-gradient(135deg, #2563eb, #06b6d4) !important;
+    box-shadow:0 10px 24px rgba(37,99,235,.24);
+  }
+  .field input, .field select, .field textarea, #accountSelector, #new-account-name{
+    background:rgba(2,6,23,.62) !important;
+    border-color:rgba(148,163,184,.16) !important;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus, #accountSelector:focus, #new-account-name:focus{
+    border-color:rgba(96,165,250,.72) !important;
+    box-shadow:0 0 0 3px rgba(59,130,246,.16), inset 0 1px 0 rgba(255,255,255,.045);
+  }
+  table tbody tr:hover{ background:rgba(59,130,246,.07) !important; }
+  .screenshot-drop{
+    background:linear-gradient(135deg, rgba(59,130,246,.08), rgba(6,182,212,.05));
+  }
+  .toast{ box-shadow:0 20px 55px rgba(0,0,0,.42), 0 0 0 1px rgba(96,165,250,.25) inset; }
+  html:not(.light-theme) body.bg-black{
+    background:
+      radial-gradient(circle at top left, rgba(59,130,246,.24), transparent 34rem),
+      radial-gradient(circle at 78% 8%, rgba(6,182,212,.16), transparent 28rem),
+      radial-gradient(circle at bottom right, rgba(245,158,11,.12), transparent 34rem),
+      var(--bg) !important;
+  }
+  .hero-card{
+    position:relative;
+    overflow:hidden;
+    border:1px solid rgba(96,165,250,.28) !important;
+    background:
+      linear-gradient(135deg, rgba(37,99,235,.24), rgba(6,182,212,.10) 42%, rgba(15,23,42,.82)),
+      radial-gradient(circle at 80% 20%, rgba(245,158,11,.18), transparent 20rem) !important;
+  }
+  .hero-card::before{
+    content:"";
+    position:absolute;
+    inset:-35% auto auto 58%;
+    width:360px;
+    height:360px;
+    border-radius:999px;
+    background:radial-gradient(circle, rgba(96,165,250,.26), transparent 66%);
+  }
+  .hero-orb{
+    box-shadow:0 0 34px rgba(6,182,212,.42), inset 0 1px 0 rgba(255,255,255,.22);
+  }
+  @media (max-width: 1100px){
+    .grid.grid-cols-4, #statsGrid2{ grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
+    .grid.grid-cols-3, .grid.grid-cols-2{ grid-template-columns:1fr !important; }
+    .col-span-2{ grid-column:span 1 / span 1 !important; }
+  }
+  @media (max-width: 760px){
+    .flex.h-screen{ flex-direction:column; height:auto; min-height:100vh; }
+    aside{ width:100% !important; border-right:0 !important; border-bottom:1px solid var(--border); }
+    nav{ flex-direction:row !important; overflow-x:auto; padding-bottom:.25rem; }
+    .nav-tab{ white-space:nowrap; }
+    header, main{ padding-left:1rem !important; padding-right:1rem !important; }
+    #statsGrid, #statsGrid2{ grid-template-columns:1fr !important; }
+  }
+
+  html.light-theme body{ background:radial-gradient(circle at top left, rgba(37,99,235,.10), transparent 30rem), #f7f7f8; color-scheme:light; }
   html.light-theme .bg-black{ background:#f7f7f8 !important; }
   html.light-theme .bg-black\/70{ background:rgba(0,0,0,.5) !important; }
-  html.light-theme .bg-zinc-950{ background:#ffffff !important; }
+  html.light-theme .bg-zinc-950{ background:rgba(255,255,255,.88) !important; }
   html.light-theme .bg-zinc-900,
   html.light-theme .bg-zinc-900\/60,
   html.light-theme .bg-zinc-900\/50{ background:#ffffff !important; }
@@ -153,8 +297,8 @@
         <svg class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg>
       </div>
       <div>
-        <div class="text-sm font-semibold text-white leading-none">TradeLog</div>
-        <div class="mono text-[10px] text-zinc-500 mt-1">sweep · mss · displacement</div>
+        <div class="text-base font-bold text-white leading-none tracking-tight">TradeLog</div>
+        <div class="mono text-[10px] text-blue-300/80 mt-1">sweep · mss · displacement</div>
       </div>
     </div>
 
@@ -222,15 +366,39 @@
   <div class="flex flex-1 flex-col overflow-hidden">
     <header class="flex items-center justify-between border-b border-zinc-800 px-8 py-4">
       <div>
-        <h1 id="pageTitle" class="text-lg font-semibold text-white">Dashboard</h1>
+        <div class="mono mb-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-blue-400">Trading command center</div>
+        <h1 id="pageTitle" class="text-xl font-semibold text-white tracking-tight">Dashboard</h1>
         <p id="pageSub" class="text-xs text-zinc-500">Vue d'ensemble de ta performance</p>
       </div>
+      <button class="hidden sm:inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-xs font-medium text-blue-200 hover:text-white" onclick="goToTab('form')">
+        <span class="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.85)]"></span>
+        Nouveau trade
+      </button>
     </header>
 
     <main class="flex-1 overflow-y-auto px-8 py-6">
 
       <!-- DASHBOARD -->
       <div class="panel active" id="panel-dashboard">
+        <section class="hero-card mb-5 rounded-2xl border p-6 md:p-7">
+          <div class="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div class="max-w-2xl">
+              <div class="mono mb-3 inline-flex rounded-full border border-blue-400/30 bg-blue-400/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-blue-200">Nouveau design actif</div>
+              <h2 class="text-2xl font-semibold tracking-tight text-white md:text-3xl">Ton journal de trading, plus clair et plus rapide à lire.</h2>
+              <p class="mt-2 text-sm leading-6 text-zinc-300">Dashboard mis en avant, cartes plus contrastées, actions visibles et navigation modernisée pour analyser tes setups sans perdre le focus.</p>
+            </div>
+            <div class="grid min-w-[220px] grid-cols-2 gap-3 mono text-xs text-zinc-300">
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div class="hero-orb mb-3 h-8 w-8 rounded-full bg-cyan-400/70"></div>
+                Lecture plus nette
+              </div>
+              <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div class="hero-orb mb-3 h-8 w-8 rounded-full bg-blue-500/80"></div>
+                Accès rapide
+              </div>
+            </div>
+          </div>
+        </section>
         <div class="grid grid-cols-4 gap-4" id="statsGrid"></div>
 
         <div class="mt-4 grid grid-cols-3 gap-4">
