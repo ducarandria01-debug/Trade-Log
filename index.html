@@ -43,18 +43,45 @@
       outline-offset: 2px;
     }
 
-    .app { min-height: 100vh; display: grid; grid-template-columns: 246px 1fr; }
+    .app {
+      --sidebar-width: 246px;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      transition: grid-template-columns .28s ease;
+    }
+    .app.sidebar-collapsed { --sidebar-width: 78px; }
     .sidebar {
       position: fixed;
       inset: 0 auto 0 0;
       z-index: 20;
-      width: 246px;
+      width: var(--sidebar-width);
       display: flex;
       flex-direction: column;
       padding: 27px 18px 17px;
       background: rgba(9, 21, 17, .97);
       border-right: 1px solid var(--line);
+      transition: width .28s ease, padding .28s ease;
     }
+    .sidebar-toggle {
+      position: absolute;
+      top: 74px;
+      right: -13px;
+      z-index: 2;
+      width: 27px;
+      height: 27px;
+      display: grid;
+      place-items: center;
+      padding: 0;
+      color: var(--green);
+      background: #10231c;
+      border: 1px solid #29483d;
+      border-radius: 50%;
+      box-shadow: 0 5px 18px rgba(0, 0, 0, .35);
+      font-size: 17px;
+      transition: transform .28s ease, background .2s ease;
+    }
+    .sidebar-toggle:hover { background: #17352b; }
     .brand { display: flex; align-items: center; gap: 11px; padding: 0 9px 34px; }
     .mark {
       width: 29px;
@@ -134,6 +161,22 @@
     .profile-copy { display: flex; flex-direction: column; gap: 3px; }
     .profile-copy strong { font-size: 11px; }
     .profile-copy small { color: var(--muted); font-size: 8px; }
+    .app.sidebar-collapsed .sidebar { padding-inline: 12px; }
+    .app.sidebar-collapsed .sidebar-toggle { transform: rotate(180deg); }
+    .app.sidebar-collapsed .brand { justify-content: center; padding-inline: 0; }
+    .app.sidebar-collapsed .brand-copy,
+    .app.sidebar-collapsed .nav-label,
+    .app.sidebar-collapsed .nav-count,
+    .app.sidebar-collapsed .discipline,
+    .app.sidebar-collapsed .profile-copy { display: none; }
+    .app.sidebar-collapsed .nav-btn {
+      justify-content: center;
+      gap: 0;
+      padding-inline: 0;
+      font-size: 0;
+    }
+    .app.sidebar-collapsed .nav-icon { width: auto; font-size: 17px; }
+    .app.sidebar-collapsed .profile { justify-content: center; padding-inline: 0; }
 
     .content { grid-column: 2; width: min(100%, 1500px); padding: 32px 38px 60px; }
     .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
@@ -319,7 +362,7 @@
       .donut-card .legend { width: min(280px, 100%); margin-inline: auto; }
     }
     @media (max-width: 760px) {
-      .app { display: block; }
+      .app, .app.sidebar-collapsed { --sidebar-width: 0px; display: block; }
       .sidebar { display: none; }
       .content { width: 100%; padding: 19px 14px 88px; }
       .topbar { margin-bottom: 22px; }
@@ -374,6 +417,7 @@
 <body>
   <div class="app">
     <aside class="sidebar">
+      <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Réduire la barre latérale" aria-expanded="true">&lsaquo;</button>
       <div class="brand">
         <span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>
         <span class="brand-copy"><strong>APEX</strong><small>TRADING JOURNAL</small></span>
@@ -584,7 +628,8 @@
         trades: "apex-html-trades",
         note: "apex-html-note",
         currency: "apex-html-currency",
-        checklist: "apex-html-checklist"
+        checklist: "apex-html-checklist",
+        sidebarPinned: "apex-html-sidebar-pinned"
       };
 
       const seedTrades = [
@@ -611,6 +656,11 @@
       let query = "";
       let currency = localStorage.getItem(STORAGE.currency) || "USD";
       let toastTimer;
+      const app = document.querySelector(".app");
+      const sidebar = document.querySelector(".sidebar");
+      const sidebarToggle = document.getElementById("sidebarToggle");
+      let sidebarPinned = localStorage.getItem(STORAGE.sidebarPinned) === "true";
+      let collapseTimer;
 
       function load(key, fallback) {
         try {
@@ -758,6 +808,38 @@
         if (id === "dashboard") setTimeout(drawChart,20);
       }
 
+      function setSidebarCollapsed(collapsed) {
+        if (window.innerWidth <= 760) collapsed = false;
+        app.classList.toggle("sidebar-collapsed", collapsed);
+        sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+        sidebarToggle.setAttribute("aria-label", collapsed ? "Agrandir la barre latérale" : "Réduire la barre latérale");
+        window.setTimeout(() => requestAnimationFrame(drawChart), 290);
+      }
+
+      function scheduleCollapse(delay = 450) {
+        clearTimeout(collapseTimer);
+        if (sidebarPinned || window.innerWidth <= 760) return;
+        collapseTimer = setTimeout(() => setSidebarCollapsed(true), delay);
+      }
+
+      function expandSidebar() {
+        if (window.innerWidth <= 760) return;
+        clearTimeout(collapseTimer);
+        setSidebarCollapsed(false);
+      }
+
+      sidebar.addEventListener("mouseenter", expandSidebar);
+      sidebar.addEventListener("mouseleave", () => scheduleCollapse());
+      sidebar.addEventListener("focusin", expandSidebar);
+      sidebar.addEventListener("focusout", () => scheduleCollapse(700));
+      sidebarToggle.addEventListener("click", () => {
+        sidebarPinned = !sidebarPinned;
+        localStorage.setItem(STORAGE.sidebarPinned, String(sidebarPinned));
+        setSidebarCollapsed(!sidebarPinned);
+        if (sidebarPinned) toast("Barre latérale verrouillée ouverte");
+        else toast("Réduction automatique activée");
+      });
+
       function openModal() {
         const modal = document.getElementById("tradeModal");
         modal.classList.add("open");
@@ -864,7 +946,14 @@
         toast("Données réinitialisées");
       });
 
-      window.addEventListener("resize",() => requestAnimationFrame(drawChart));
+      window.addEventListener("resize",() => {
+        if (window.innerWidth <= 760) setSidebarCollapsed(false);
+        else if (sidebarPinned) setSidebarCollapsed(false);
+        else scheduleCollapse(100);
+        requestAnimationFrame(drawChart);
+      });
+      setSidebarCollapsed(false);
+      scheduleCollapse(window.innerWidth <= 1100 ? 500 : 1800);
       render();
     })();
   </script>
