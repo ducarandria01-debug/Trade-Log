@@ -11,3 +11,5 @@ pnpm-debug.log*
 qa-*.png
 .next-server.log
 .next-server.err
+.vinext-server.log
+.vinext-server.err

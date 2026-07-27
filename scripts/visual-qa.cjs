@@ -1,6 +1,7 @@
 const { chromium } = require("C:/Users/ducar/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright");
 
 (async () => {
+  const baseUrl = process.env.QA_URL || "http://127.0.0.1:4173";
   const browser = await chromium.launch({
     headless: true,
     executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
@@ -13,7 +14,7 @@ const { chromium } = require("C:/Users/ducar/.cache/codex-runtimes/codex-primary
   });
   desktop.on("pageerror", error => errors.push(error.message));
 
-  await desktop.goto("http://127.0.0.1:4173", { waitUntil: "networkidle" });
+  await desktop.goto(baseUrl, { waitUntil: "networkidle" });
   const initial = {
     title: await desktop.title(),
     heading: await desktop.locator("h1").first().textContent(),
@@ -38,7 +39,7 @@ const { chromium } = require("C:/Users/ducar/.cache/codex-runtimes/codex-primary
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
   mobile.on("pageerror", error => errors.push(error.message));
-  await mobile.goto("http://127.0.0.1:4173", { waitUntil: "networkidle" });
+  await mobile.goto(baseUrl, { waitUntil: "networkidle" });
   await mobile.screenshot({ path: "qa-mobile.png", fullPage: true });
   const mobileMetrics = await mobile.evaluate(() => ({
     bodyWidth: document.body.scrollWidth,
