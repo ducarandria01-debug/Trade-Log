@@ -23834,7 +23834,7 @@
       let linkedTradeSearchTimer = null;
       let mentorshipConcepts = [];
       let mentorshipReviews = [];
-      let mentorshipMonthTitles = Object.fromEntries(Array.from({length:12},(_,index)=>[index+1,`Month ${index+1}`]));
+      let mentorshipMonthTitles = Object.fromEntries(Array.from({length:12},(_,index)=>[index+1,`Mois ${index+1}`]));
       let mentorshipMonthCaptures = Object.fromEntries(Array.from({length:12},(_,index)=>[index+1,[]]));
       let mentorshipMonthNotes = Object.fromEntries(Array.from({length:12},(_,index)=>[index+1,{notes:"",notesHtml:"",updated_at:null}]));
       let mentorshipMonthCaptureJobs = Object.fromEntries(Array.from({length:12},(_,index)=>[index+1,0]));
@@ -24419,7 +24419,7 @@
         if (storedTitles&&typeof storedTitles==="object") {
           mentorshipMonthTitles=Object.fromEntries(Array.from({length:12},(_,index)=>{
             const month=index+1;
-            return [month,String(storedTitles[month]||storedTitles[String(month)]||`Month ${month}`)];
+            return [month,String(storedTitles[month]||storedTitles[String(month)]||`Mois ${month}`)];
           }));
         }
         mentorshipMonthCaptures=normalizeMentorshipMonthCaptures(storedMonthCaptures);
@@ -25776,7 +25776,7 @@
 
       function mentorshipMonthScreenshotItems(month) {
         const monthNumber=Math.max(1,Math.min(12,Number(month)||1));
-        const monthTitle=mentorshipMonthTitles[monthNumber]||`Month ${monthNumber}`;
+        const monthTitle=mentorshipMonthTitles[monthNumber]||`Mois ${monthNumber}`;
         return (mentorshipMonthCaptures[monthNumber]||[]).map((shot,index)=>(
           {
             key:`mentorship-month:${monthNumber}:${shot.id}`,
@@ -25920,7 +25920,7 @@
         const monthChanged=Number(editor.dataset.month)!==monthNumber;
         const shouldRefresh=monthChanged||document.activeElement!==editor;
         editor.dataset.month=String(monthNumber);
-        heading.textContent=`Notes globales · ${mentorshipMonthTitles[monthNumber]||`Month ${monthNumber}`}`;
+        heading.textContent=`Notes globales · ${mentorshipMonthTitles[monthNumber]||`Mois ${monthNumber}`}`;
         if (shouldRefresh) {
           editor.innerHTML=record.notesHtml||"";
           mentorshipMonthNoteSelectionRange=null;
@@ -26029,7 +26029,7 @@
             return `<article class="mentorship-month-card ${progress.className}">
               <button class="mentorship-month-open" type="button" data-open-mentorship-month="${month}" aria-label="Ouvrir le Mois ${month}">
                 <span class="mentorship-module-top"><small class="mentorship-month-kicker">MOIS ${String(month).padStart(2,"0")}</small></span>
-                <span><h3>${escapeHtml(mentorshipMonthTitles[month]||`Month ${month}`)}</h3><p>${escapeHtml(summary)}</p></span>
+                <span><h3>${escapeHtml(mentorshipMonthTitles[month]||`Mois ${month}`)}</h3><p>${escapeHtml(summary)}</p></span>
                 <span class="mentorship-module-progress"><span><b>${escapeHtml(progress.stateLabel)}</b><b>${progress.percent}%</b></span><i><b style="width:${progress.percent}%"></b></i></span>
               </button>
               <button class="mentorship-month-edit" type="button" data-edit-mentorship-month="${month}" aria-label="Renommer le Mois ${month}">TITRE</button>
@@ -26053,7 +26053,7 @@
         const month=Number(activeMentorshipMonth);
         const progress=mentorshipProgress(month);
         document.getElementById("mentorshipMonthKicker").textContent=`MOIS ${String(month).padStart(2,"0")}`;
-        document.getElementById("mentorshipMonthTitle").textContent=mentorshipMonthTitles[month]||`Month ${month}`;
+        document.getElementById("mentorshipMonthTitle").textContent=mentorshipMonthTitles[month]||`Mois ${month}`;
         document.getElementById("mentorshipMonthSummary").textContent=progress.videos.length
           ? `${progress.videos.length} vidéo${progress.videos.length>1?"s":""} · ${progress.percent}% étudié ou maîtrisé`
           : "Aucune vidéo enregistrée.";
@@ -26191,7 +26191,7 @@
         const monthNumber=Math.max(1,Math.min(12,Number(month)||1));
         const form=document.getElementById("mentorshipMonthTitleForm");
         form.elements.month.value=monthNumber;
-        form.elements.title.value=mentorshipMonthTitles[monthNumber]||`Month ${monthNumber}`;
+        form.elements.title.value=mentorshipMonthTitles[monthNumber]||`Mois ${monthNumber}`;
         document.getElementById("mentorshipMonthTitleModalHeading").textContent=`Renommer le Mois ${String(monthNumber).padStart(2,"0")}`;
         activateModal(document.getElementById("mentorshipMonthTitleModal"),form.elements.title);
       }
@@ -26339,7 +26339,7 @@
         form.reset();
         form.elements.month.innerHTML=Array.from({length:12},(_,index)=>{
           const monthNumber=index+1;
-          return `<option value="${monthNumber}">Month ${monthNumber} · ${escapeHtml(mentorshipMonthTitles[monthNumber]||`Month ${monthNumber}`)}</option>`;
+          return `<option value="${monthNumber}">Mois ${monthNumber} · ${escapeHtml(mentorshipMonthTitles[monthNumber]||`Mois ${monthNumber}`)}</option>`;
         }).join("");
         const targetMonth=concept?.month||Math.max(1,Math.min(12,Number(month)||1));
         const monthVideos=mentorshipVideosForMonth(targetMonth);
@@ -27225,6 +27225,8 @@
       function render() {
         const activeView=document.querySelector(".view.active")?.id||"dashboard";
         renderAccountUI();
+        const tradeCountEl=document.getElementById("tradeCount");
+        if (tradeCountEl) tradeCountEl.textContent=accountTrades().length;
         if (activeView!=="dashboard") {
           if (activeView==="journal") {
             if (journalViewMode==="gallery") renderGallery();
@@ -27265,7 +27267,6 @@
         document.getElementById("disciplineRate").textContent=planRate===null?"—":`${planRate.toFixed(0)}%`;
         document.getElementById("disciplineProgress").style.width=planRate===null?"0%":`${planRate}%`;
         document.getElementById("disciplineNote").textContent=planAssessed.length?`${planAssessed.length} trade${planAssessed.length>1?"s":""} évalué${planAssessed.length>1?"s":""}.`:"Complète la checklist globale pour mesurer ta discipline.";
-        document.getElementById("tradeCount").textContent = scopedTrades.length;
         document.getElementById("netPnl").textContent = formatDashboardValue(s.net,totalR(dashboardTrades));
         document.getElementById("netPnl").className = `kpi-value ${dashboardResultClass(s.net,totalR(dashboardTrades))}`;
         document.getElementById("winRateKpi").textContent = s.rate.toFixed(1) + "%";
