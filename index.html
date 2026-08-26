@@ -766,6 +766,20 @@
     .occ-check input { flex: none; appearance: none; width: 18px; height: 18px; margin: 0; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; }
     .occ-check input:checked { border-color: var(--win); background: var(--green); box-shadow: inset 0 0 0 4px var(--win); }
     .occ-check:has(input:checked) { border-color: color-mix(in srgb, var(--win) 45%, var(--line)); background: color-mix(in srgb, var(--win) 7%, var(--surface)); color: var(--text-1); }
+    .occ-hidden-slot, .occ-dropzone input[type="file"] { display: none; }
+    .occ-dropzone { display: block; cursor: pointer; }
+    .occ-dropzone-content { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 16px; background: var(--bg); border: 1.5px dashed var(--border); border-radius: 10px; color: var(--text-2); text-align: center; transition: border-color .15s ease, background .15s ease; }
+    .occ-dropzone-content i { font-size: 22px; font-style: normal; }
+    .occ-dropzone-content strong { color: var(--text-1); font-size: 12px; }
+    .occ-dropzone-content small { color: var(--text-3); font-size: 9px; }
+    .occ-dropzone.is-dragover .occ-dropzone-content { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
+    .occ-dropzone.is-full { pointer-events: none; opacity: .5; }
+    .occ-capture-thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .occ-capture-thumbs:empty { display: none; }
+    .occ-capture-thumb { position: relative; width: 74px; height: 74px; overflow: hidden; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+    .occ-capture-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .occ-capture-thumb.is-loading { display: flex; align-items: center; justify-content: center; color: var(--text-3); font-size: 9px; }
+    .occ-capture-thumb button { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; padding: 0; background: rgba(0,0,0,.55); border: none; border-radius: 50%; color: #fff; font-size: 11px; line-height: 1; cursor: pointer; }
     .occurrence-list { display: grid; gap: 8px; margin-top: 17px; max-height: 570px; overflow-y: auto; }
     .occurrence-item { display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px; background: color-mix(in srgb, var(--win) 14%, var(--surface)); border: 1px solid var(--line); border-radius: 8px; }
     .occurrence-item img { width: 80px; height: 52px; object-fit: cover; border-radius: 6px; }
@@ -22968,13 +22982,20 @@
               </div>
               <label class="field full occurrence-note-field">Observation <small>Facultatif</small><textarea name="note" rows="4" placeholder="Observation sans hindsight..."></textarea></label>
               <div class="occurrence-captures-block">
-                <span class="eyebrow">CAPTURES <small>Facultatif</small></span>
-                <div class="occurrence-captures-grid">
-                  <label class="stage-capture"><input name="stageScreenshotA" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
-                  <label class="stage-capture"><input name="stageScreenshotB" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
-                  <label class="stage-capture"><input name="stageScreenshotC" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
-                  <label class="stage-capture"><input name="stageScreenshotD" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
-                </div>
+                <span class="eyebrow">CAPTURES <small>Facultatif — <span id="occCaptureCount">0</span>/4</small></span>
+                <label class="occ-dropzone" id="occDropzone">
+                  <input type="file" accept="image/*" multiple id="occDropzoneInput">
+                  <div class="occ-dropzone-content">
+                    <i>🖼</i>
+                    <strong>Cliquer ou glisser des images…</strong>
+                    <small>PNG, JPG, WebP · max 4</small>
+                  </div>
+                </label>
+                <div class="occ-capture-thumbs" id="occCaptureThumbs"></div>
+                <input name="stageScreenshotA" type="file" accept="image/*" class="occ-hidden-slot">
+                <input name="stageScreenshotB" type="file" accept="image/*" class="occ-hidden-slot">
+                <input name="stageScreenshotC" type="file" accept="image/*" class="occ-hidden-slot">
+                <input name="stageScreenshotD" type="file" accept="image/*" class="occ-hidden-slot">
               </div>
               <div class="modal-actions"><button class="primary" type="submit">Enregistrer l’occurrence</button></div>
             </form>
@@ -28136,30 +28157,80 @@
           : captureEmptyMarkup();
       }
 
-      async function renderOccurrenceCapturePreview(input) {
-        const preview = input?.nextElementSibling;
-        if (!preview?.classList.contains("stage-image-preview")) return;
-        const file = input.files?.[0];
-        if (!file) {
-          preview.classList.remove("has-image","is-loading");
-          preview.innerHTML = captureEmptyMarkup();
-          return;
+      const OCC_CAPTURE_SLOTS = ["A","B","C","D"];
+      function occSlotInput(letter) {
+        return document.querySelector(`#occurrenceForm input[name="stageScreenshot${letter}"]`);
+      }
+      function occFilledSlots() {
+        return OCC_CAPTURE_SLOTS.filter(letter => occSlotInput(letter)?.files?.[0]);
+      }
+      function occNextEmptySlot() {
+        return OCC_CAPTURE_SLOTS.find(letter => !occSlotInput(letter)?.files?.[0]);
+      }
+      function occClearSlot(letter) {
+        const input = occSlotInput(letter);
+        if (input) input.value = "";
+      }
+      async function occAddFiles(fileList) {
+        const files = [...fileList].filter(file => file.type.startsWith("image/"));
+        let skipped = 0;
+        for (const file of files) {
+          const slot = occNextEmptySlot();
+          if (!slot) { skipped++; continue; }
+          const transfer = new DataTransfer();
+          transfer.items.add(file);
+          occSlotInput(slot).files = transfer.files;
         }
-        preview.classList.add("is-loading");
-        preview.innerHTML = `<span class="capture-empty"><i>···</i><strong>Préparation de l’aperçu</strong><small>Le fichier original reste intact</small></span>`;
-        try {
-          const source = await readOriginalImage(file);
-          if (input.files?.[0] !== file) return;
-          preview.classList.remove("is-loading");
-          preview.classList.add("has-image");
-          preview.innerHTML = `<img ${mediaImageAttributes(source)} alt="Aperçu de la capture"><button class="remove-image" type="button" data-remove-occurrence-image="${escapeHtml(input.name)}" aria-label="Retirer la capture">×</button>`;
-        } catch(error) {
-          input.value = "";
-          preview.classList.remove("has-image","is-loading");
-          preview.innerHTML = captureEmptyMarkup();
-          toast(error.message || "Impossible d’afficher cette capture.");
+        if (skipped) toast(`Maximum 4 images — ${skipped} ignorée${skipped>1?"s":""}.`);
+        await renderOccCaptureThumbs();
+      }
+      async function renderOccCaptureThumbs() {
+        const container = document.getElementById("occCaptureThumbs");
+        const countEl = document.getElementById("occCaptureCount");
+        const dropzone = document.getElementById("occDropzone");
+        if (!container) return;
+        const filled = occFilledSlots();
+        if (countEl) countEl.textContent = filled.length;
+        if (dropzone) dropzone.classList.toggle("is-full", filled.length>=4);
+        container.innerHTML = "";
+        for (const letter of filled) {
+          const input = occSlotInput(letter);
+          const file = input.files[0];
+          const thumb = document.createElement("div");
+          thumb.className = "occ-capture-thumb is-loading";
+          thumb.textContent = "···";
+          container.appendChild(thumb);
+          try {
+            const source = await readOriginalImage(file);
+            if (input.files?.[0] !== file) continue;
+            thumb.classList.remove("is-loading");
+            thumb.innerHTML = `<img ${mediaImageAttributes(source)} alt="Capture"><button type="button" data-occ-remove-slot="${letter}" aria-label="Retirer la capture">×</button>`;
+          } catch(error) {
+            occClearSlot(letter);
+            thumb.remove();
+            toast(error.message || "Impossible d’afficher cette capture.");
+          }
         }
       }
+      (function initOccDropzone() {
+        const dropzone = document.getElementById("occDropzone");
+        const input = document.getElementById("occDropzoneInput");
+        if (!dropzone || !input) return;
+        input.addEventListener("change", async () => {
+          await occAddFiles(input.files);
+          input.value = "";
+        });
+        ["dragenter","dragover"].forEach(type => dropzone.addEventListener(type, event => {
+          event.preventDefault();
+          dropzone.classList.add("is-dragover");
+        }));
+        ["dragleave","dragend"].forEach(type => dropzone.addEventListener(type, () => dropzone.classList.remove("is-dragover")));
+        dropzone.addEventListener("drop", async event => {
+          event.preventDefault();
+          dropzone.classList.remove("is-dragover");
+          if (event.dataTransfer?.files?.length) await occAddFiles(event.dataTransfer.files);
+        });
+      })();
 
       function openTradeJourneyStage(index,focus=false) {
         const tabs=[...document.querySelectorAll("[data-trade-stage-tab]")];
@@ -30783,9 +30854,6 @@
         const form = document.getElementById("occurrenceForm");
         form.elements.result.placeholder = "Ex. 2.0";
       }
-      occurrenceForm.addEventListener("change",event => {
-        if (event.target.type === "file") renderOccurrenceCapturePreview(event.target);
-      });
       occurrenceForm.addEventListener("submit",async event => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
@@ -30832,7 +30900,7 @@
           });
           if (!saveLocal(STORAGE.occurrences,occurrences)) { occurrences.pop(); return; }
           event.currentTarget.reset();
-          event.currentTarget.querySelectorAll('input[type="file"]').forEach(renderOccurrenceCapturePreview);
+          await renderOccCaptureThumbs();
           renderConceptPicker(document.querySelector('[data-concept-picker="backtest"]'),false);
           closeOccurrenceModal();
           renderBacktest(); renderProfile(); renderConceptLibrary();
@@ -31174,15 +31242,12 @@
           updateTradeJourneyProgress();
           return;
         }
-        const removeOccurrenceImage = event.target.closest("[data-remove-occurrence-image]");
-        if (removeOccurrenceImage) {
+        const removeOccSlot = event.target.closest("[data-occ-remove-slot]");
+        if (removeOccSlot) {
           event.preventDefault();
           event.stopPropagation();
-          const input = occurrenceForm.elements[removeOccurrenceImage.dataset.removeOccurrenceImage];
-          if (input) {
-            input.value = "";
-            renderOccurrenceCapturePreview(input);
-          }
+          occClearSlot(removeOccSlot.dataset.occRemoveSlot);
+          renderOccCaptureThumbs();
           return;
         }
         const detailTrigger=event.target.closest("[data-trade-detail]");
