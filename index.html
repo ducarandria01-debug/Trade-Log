@@ -758,6 +758,14 @@
     .criteria-box .eyebrow { grid-column: 1 / -1; margin-bottom: 3px; }
     .criteria-box label { display: grid; gap: 6px; color: var(--text-2); font-size: 8px; }
     .criteria-box select { width: 100%; height: 31px; padding: 0 6px; color: var(--text-2); background: color-mix(in srgb, var(--win) 14%, var(--surface)); border: 1px solid color-mix(in srgb, var(--win) 30%, var(--border)); border-radius: 6px; font-size: 8px; }
+    .occ-checklist { margin: 16px 0; padding: 14px; background: color-mix(in srgb, var(--win) 8%, var(--surface)); border: 1px solid var(--line); border-radius: 8px; }
+    .occ-checklist > .eyebrow { display: block; margin-bottom: 11px; }
+    .occ-checklist-context { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    .occ-checklist-items { display: grid; gap: 6px; }
+    .occ-check { display: flex; align-items: center; gap: 11px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px; color: var(--text-2); font-size: 11px; cursor: pointer; transition: background .15s ease, border-color .15s ease, color .15s ease; }
+    .occ-check input { flex: none; appearance: none; width: 18px; height: 18px; margin: 0; border: 1px solid var(--border); border-radius: 5px; cursor: pointer; }
+    .occ-check input:checked { border-color: var(--win); background: var(--green); box-shadow: inset 0 0 0 4px var(--win); }
+    .occ-check:has(input:checked) { border-color: color-mix(in srgb, var(--win) 45%, var(--line)); background: color-mix(in srgb, var(--win) 7%, var(--surface)); color: var(--text-1); }
     .occurrence-list { display: grid; gap: 8px; margin-top: 17px; max-height: 570px; overflow-y: auto; }
     .occurrence-item { display: grid; grid-template-columns: 80px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px; background: color-mix(in srgb, var(--win) 14%, var(--surface)); border: 1px solid var(--line); border-radius: 8px; }
     .occurrence-item img { width: 80px; height: 52px; object-fit: cover; border-radius: 6px; }
@@ -22941,15 +22949,19 @@
                 <label class="field full">Session FX Replay <small>Facultatif</small><select name="replaySessionId" id="occurrenceReplaySession"><option value="">Occurrence libre · hors session Replay</option></select></label>
               </div>
               <input name="conceptIds" type="hidden">
-              <div class="criteria-box methodology-checklist occurrence-quick-checklist">
+              <div class="occ-checklist">
                 <span class="eyebrow">GRILLE DE VALIDATION</span>
-                <label class="field">Bias HTF<select name="biasHtf" required><option value="">Sélectionner</option><option value="Bullish">Bullish</option><option value="Bearish">Bearish</option><option value="Neutre">Neutre</option></select></label>
-                <label class="check-item"><input type="checkbox" name="sweep"> Liquidity Sweep</label>
-                <label class="check-item"><input type="checkbox" name="mss"> Market Structure Shift</label>
-                <label class="check-item"><input type="checkbox" name="displacement"> Displacement</label>
-                <label class="check-item"><input type="checkbox" name="fvg"> FVG confirmé</label>
-                <label class="field">Timeframe du FVG<select name="fvgTimeframe" required><option value="">Sélectionner</option><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option></select></label>
-                <label class="check-item"><input type="checkbox" name="plan"> Plan respecté</label>
+                <div class="occ-checklist-context">
+                  <label class="field">Bias HTF<select name="biasHtf" required><option value="">Sélectionner</option><option value="Bullish">Bullish</option><option value="Bearish">Bearish</option><option value="Neutre">Neutre</option></select></label>
+                  <label class="field">Timeframe du FVG<select name="fvgTimeframe" required><option value="">Sélectionner</option><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option></select></label>
+                </div>
+                <div class="occ-checklist-items">
+                  <label class="occ-check"><input type="checkbox" name="sweep"><span>Liquidity Sweep</span></label>
+                  <label class="occ-check"><input type="checkbox" name="mss"><span>Market Structure Shift</span></label>
+                  <label class="occ-check"><input type="checkbox" name="displacement"><span>Displacement</span></label>
+                  <label class="occ-check"><input type="checkbox" name="fvg"><span>FVG confirmé</span></label>
+                  <label class="occ-check"><input type="checkbox" name="plan"><span>Plan respecté</span></label>
+                </div>
               </div>
               <div class="stage-fields">
                 <label class="field">Résultat en R<input name="result" type="number" step=".1" required placeholder="Ex. 2.0"></label>
