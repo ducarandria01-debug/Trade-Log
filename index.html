@@ -22927,8 +22927,8 @@
           </article>
           <div class="backtest-layout">
             <form class="card panel occurrence-form" id="occurrenceForm">
-              <div class="panel-head"><div><span class="eyebrow">NOUVELLE ÉTUDE</span><h2>Ajouter une occurrence</h2><p>Même séquence méthodologique que le journal Live.</p></div><span class="badge neutral">4 ÉTAPES</span></div>
-              <div class="methodology-intro"><span><strong>ICT 2022 Mentorship</strong> · Recherche structurée sans hindsight</span><span class="methodology-flow">BIAS → LIQUIDITÉ → SWEEP → MSS → DISPLACEMENT → FVG</span></div>
+              <div class="panel-head"><div><span class="eyebrow">NOUVELLE ÉTUDE</span><h2>Ajouter une occurrence</h2><p>Coche ta grille, note le résultat.</p></div><span class="badge neutral">RAPIDE</span></div>
+              <div class="methodology-intro"><span><strong>ICT 2022 Mentorship</strong> · Recherche structurée sans hindsight</span><span class="methodology-flow">BIAS → SWEEP → MSS → DISPLACEMENT → FVG</span></div>
               <div class="active-strategy-strip">
                 <span><small>STRATÉGIE TESTÉE</small><strong data-active-strategy>ICT 2022 · FVG Execution Model</strong></span>
                 <span class="badge neutral">SYNCHRONISÉE AVEC ANALYSES</span>
@@ -22941,68 +22941,28 @@
                 <label class="field full">Session FX Replay <small>Facultatif</small><select name="replaySessionId" id="occurrenceReplaySession"><option value="">Occurrence libre · hors session Replay</option></select></label>
               </div>
               <input name="conceptIds" type="hidden">
-              <div class="occurrence-workflow" id="occurrenceWorkflow">
-                <div class="occurrence-workflow-head"><span><strong>Progression de l’étude</strong><small id="occurrenceFormProgressText">0/4 étapes complétées</small></span><span class="occurrence-form-progress"><i id="occurrenceFormProgressBar"></i></span></div>
-                <div class="occurrence-stepper" role="tablist" aria-label="Étapes de l’occurrence">
-                  <button class="active" type="button" data-open-occurrence-stage="0"><b>A</b><span>Bias HTF</span><i></i></button>
-                  <button type="button" data-open-occurrence-stage="1"><b>B</b><span>Structure M15</span><i></i></button>
-                  <button type="button" data-open-occurrence-stage="2"><b>C</b><span>Entrée LTF</span><i></i></button>
-                  <button type="button" data-open-occurrence-stage="3"><b>D</b><span>Résultat</span><i></i></button>
-                </div>
+              <div class="criteria-box methodology-checklist occurrence-quick-checklist">
+                <span class="eyebrow">GRILLE DE VALIDATION</span>
+                <label class="field">Bias HTF<select name="biasHtf" required><option value="">Sélectionner</option><option value="Bullish">Bullish</option><option value="Bearish">Bearish</option><option value="Neutre">Neutre</option></select></label>
+                <label class="check-item"><input type="checkbox" name="sweep"> Liquidity Sweep</label>
+                <label class="check-item"><input type="checkbox" name="mss"> Market Structure Shift</label>
+                <label class="check-item"><input type="checkbox" name="displacement"> Displacement</label>
+                <label class="check-item"><input type="checkbox" name="fvg"> FVG confirmé</label>
+                <label class="field">Timeframe du FVG<select name="fvgTimeframe" required><option value="">Sélectionner</option><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option></select></label>
+                <label class="check-item"><input type="checkbox" name="plan"> Plan respecté</label>
               </div>
-              <div class="staged-methodology">
-                <section class="trade-stage">
-                  <div class="stage-head"><span class="stage-index">A</span><span class="stage-title"><strong>A · Bias HTF</strong><small>Contexte et Draw on Liquidity</small></span><span class="stage-state">OBLIGATOIRE</span></div>
-                  <div class="stage-content">
-                    <div class="stage-fields">
-                      <label class="field">Bias HTF<select name="biasHtf" required><option value="">Sélectionner</option><option value="Bullish">Bullish</option><option value="Bearish">Bearish</option><option value="Neutre">Neutre</option></select></label>
-                      <label class="field">Draw on Liquidity<select name="drawOnLiquidity" required><option value="">Sélectionner</option><option>Buyside Liquidity</option><option>Sellside Liquidity</option><option>Equal Highs</option><option>Equal Lows</option><option>Zone Trap</option></select></label>
-                    </div>
-                    <label class="stage-capture"><span>Capture A · Bias HTF</span><input name="stageScreenshotA" type="file" accept="image/*" required><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter la capture</strong><small>Aperçu instantané · original conservé</small></span></div></label>
-                  </div>
-                </section>
-                <section class="trade-stage">
-                  <div class="stage-head"><span class="stage-index">B</span><span class="stage-title"><strong>B · Structure M15</strong><small>Sweep, structure et zone de travail</small></span><span class="stage-state">OBLIGATOIRE</span></div>
-                  <div class="stage-content">
-                    <div class="stage-fields">
-                      <label class="field">Liquidity Sweep<select name="stageSweep" required><option value="">À évaluer</option><option value="true">Oui</option><option value="false">Non</option></select></label>
-                      <label class="field">FVG non testé identifié<select name="fvgUntested" required><option value="">À évaluer</option><option value="true">Oui</option><option value="false">Non</option></select></label>
-                    </div>
-                    <label class="stage-capture"><span>Capture B · Structure M15</span><input name="stageScreenshotB" type="file" accept="image/*" required><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter la capture</strong><small>Aperçu instantané · original conservé</small></span></div></label>
-                  </div>
-                </section>
-                <section class="trade-stage">
-                  <div class="stage-head"><span class="stage-index">C</span><span class="stage-title"><strong>C · Entrée LTF</strong><small>MSS, displacement et FVG M1 · M2 · M3 · M4 · M5</small></span><span class="stage-state">OBLIGATOIRE</span></div>
-                  <div class="stage-content">
-                    <div class="stage-fields">
-                      <label class="field">Market Structure Shift<select name="stageMss" required><option value="">À évaluer</option><option value="true">Oui</option><option value="false">Non</option></select></label>
-                      <label class="field">Displacement<select name="stageDisplacement" required><option value="">À évaluer</option><option value="true">Oui</option><option value="false">Non</option></select></label>
-                      <label class="field">FVG d’entrée confirmé<select name="stageFvg" required><option value="">À évaluer</option><option value="true">Oui</option><option value="false">Non</option></select></label>
-                      <label class="field">Timeframe du FVG<select name="fvgTimeframe" required><option value="">Sélectionner</option><option>M1</option><option>M2</option><option>M3</option><option>M4</option><option>M5</option></select></label>
-                    </div>
-                    <label class="stage-capture"><span>Capture C · Entrée LTF</span><input name="stageScreenshotC" type="file" accept="image/*" required><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter la capture</strong><small>Aperçu instantané · original conservé</small></span></div></label>
-                  </div>
-                </section>
-                <section class="trade-stage">
-                  <div class="stage-head"><span class="stage-index">D</span><span class="stage-title"><strong>D · Résultat / gestion</strong><small>Résultat observé sans modifier la lecture initiale</small></span><span class="stage-state">OBLIGATOIRE</span></div>
-                  <div class="stage-content">
-                    <div>
-                      <div class="criteria-box methodology-checklist">
-                        <span class="eyebrow">CRITÈRES — À ÉVALUER AVANT LE RÉSULTAT</span>
-                        <label>Liquidity Sweep<select name="sweep" required><option value="">À évaluer</option><option value="true">Présent</option><option value="false">Absent</option></select></label>
-                        <label>MSS<select name="mss" required><option value="">À évaluer</option><option value="true">Présent</option><option value="false">Absent</option></select></label>
-                        <label>Displacement<select name="displacement" required><option value="">À évaluer</option><option value="true">Présent</option><option value="false">Absent</option></select></label>
-                        <label>FVG<select name="fvg" required><option value="">À évaluer</option><option value="true">Présent</option><option value="false">Absent</option></select></label>
-                        <label>Plan respecté<select name="plan" required><option value="">À évaluer</option><option value="true">Présent</option><option value="false">Absent</option></select></label>
-                      </div>
-                      <div class="stage-fields">
-                        <label class="field">Résultat en R<input name="result" type="number" step=".1" disabled required placeholder="Évalue d’abord les 5 critères"></label>
-                        <label class="field">Observation<input name="note" placeholder="Observation sans hindsight"></label>
-                      </div>
-                    </div>
-                    <label class="stage-capture"><span>Capture D · Résultat</span><input name="stageScreenshotD" type="file" accept="image/*" required><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter la capture</strong><small>Aperçu instantané · original conservé</small></span></div></label>
-                  </div>
-                </section>
+              <div class="stage-fields">
+                <label class="field">Résultat en R<input name="result" type="number" step=".1" required placeholder="Ex. 2.0"></label>
+              </div>
+              <label class="field full occurrence-note-field">Observation <small>Facultatif</small><textarea name="note" rows="4" placeholder="Observation sans hindsight..."></textarea></label>
+              <div class="occurrence-captures-block">
+                <span class="eyebrow">CAPTURES <small>Facultatif</small></span>
+                <div class="occurrence-captures-grid">
+                  <label class="stage-capture"><span>Capture A</span><input name="stageScreenshotA" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
+                  <label class="stage-capture"><span>Capture B</span><input name="stageScreenshotB" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
+                  <label class="stage-capture"><span>Capture C</span><input name="stageScreenshotC" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
+                  <label class="stage-capture"><span>Capture D</span><input name="stageScreenshotD" type="file" accept="image/*"><div class="image-preview stage-image-preview"><span class="capture-empty"><i>＋</i><strong>Ajouter</strong></span></div></label>
+                </div>
               </div>
               <div class="modal-actions"><button class="primary" type="submit">Enregistrer l’occurrence</button></div>
             </form>
@@ -28590,7 +28550,6 @@
       }
 
       function openOccurrenceModal() {
-        openOccurrenceStage(0);
         renderConceptPicker(document.querySelector('[data-concept-picker="backtest"]'),false);
         activateModal(document.getElementById("occurrenceModal"),document.getElementById("occurrenceForm").elements.date);
       }
@@ -30808,108 +30767,28 @@
       syncBacktestCriterionFilter();
       const occurrenceForm = document.getElementById("occurrenceForm");
       document.getElementById("occurrenceModalBody").appendChild(occurrenceForm);
-      const occurrenceStages=[...occurrenceForm.querySelectorAll(".trade-stage")];
-      const occurrenceStageButtons=[...document.querySelectorAll("[data-open-occurrence-stage]")];
-      let activeOccurrenceStage=0;
-      function occurrenceFieldComplete(field) {
-        if (field.disabled) return false;
-        if (field.type==="file") return field.files.length>0;
-        return String(field.value||"").trim()!==""&&field.checkValidity();
+      function updateBacktestResultLock() {
+        const form = document.getElementById("occurrenceForm");
+        form.elements.result.placeholder = "Ex. 2.0";
       }
-      function updateOccurrenceWorkflow() {
-        let completed=0;
-        occurrenceStages.forEach((stage,index)=>{
-          const required=[...stage.querySelectorAll("[required]")];
-          const isComplete=required.length>0&&required.every(occurrenceFieldComplete);
-          stage.classList.toggle("completed",isComplete);
-          occurrenceStageButtons[index]?.classList.toggle("completed",isComplete);
-          const state=stage.querySelector(".stage-state");
-          if (state) {
-            state.dataset.defaultLabel ||= state.textContent;
-            state.textContent=isComplete?"COMPLÉTÉ":state.dataset.defaultLabel;
-          }
-          if (isComplete) completed++;
-        });
-        document.getElementById("occurrenceFormProgressText").textContent=`${completed}/4 étapes complétées`;
-        document.getElementById("occurrenceFormProgressBar").style.width=`${completed/4*100}%`;
-      }
-      function openOccurrenceStage(index,scroll=false) {
-        activeOccurrenceStage=Math.max(0,Math.min(occurrenceStages.length-1,index));
-        occurrenceStages.forEach((stage,stageIndex)=>{
-          const active=stageIndex===activeOccurrenceStage;
-          stage.classList.toggle("collapsed",!active);
-          stage.querySelector(".stage-head")?.setAttribute("aria-expanded",String(active));
-        });
-        occurrenceStageButtons.forEach((button,buttonIndex)=>{
-          const active=buttonIndex===activeOccurrenceStage;
-          button.classList.toggle("active",active);
-          button.setAttribute("role","tab");
-          button.setAttribute("aria-controls",`occurrence-stage-content-${buttonIndex}`);
-          button.setAttribute("aria-selected",String(active));
-          button.tabIndex=active?0:-1;
-        });
-        if (scroll) occurrenceStages[activeOccurrenceStage].scrollIntoView({behavior:reducedMotion.matches?"auto":"smooth",block:"nearest"});
-      }
-      occurrenceStages.forEach((stage,index)=>{
-        const head=stage.querySelector(".stage-head");
-        head.setAttribute("role","button");
-        head.setAttribute("tabindex","0");
-        head.setAttribute("aria-controls",`occurrence-stage-content-${index}`);
-        stage.querySelector(".stage-content").id=`occurrence-stage-content-${index}`;
-        head.addEventListener("click",()=>openOccurrenceStage(index));
-        head.addEventListener("keydown",event=>{
-          if (event.key==="Enter"||event.key===" ") {
-            event.preventDefault();
-            openOccurrenceStage(index);
-          }
-        });
-        if (index<occurrenceStages.length-1) {
-          const next=document.createElement("button");
-          next.type="button";
-          next.className="occurrence-stage-next";
-          next.textContent=`Continuer vers l’étape ${String.fromCharCode(66+index)} →`;
-          next.addEventListener("click",()=>openOccurrenceStage(index+1,true));
-          stage.querySelector(".stage-content").append(next);
-        }
-      });
-      occurrenceStageButtons.forEach((button,index)=>{
-        button.addEventListener("click",()=>openOccurrenceStage(Number(button.dataset.openOccurrenceStage),true));
-        button.addEventListener("keydown",event=>{
-          if (!["ArrowLeft","ArrowRight","Home","End"].includes(event.key)) return;
-          event.preventDefault();
-          const target=event.key==="Home"?0:event.key==="End"?occurrenceStageButtons.length-1:(index+(event.key==="ArrowRight"?1:-1)+occurrenceStageButtons.length)%occurrenceStageButtons.length;
-          openOccurrenceStage(target,true);
-          occurrenceStageButtons[target].focus();
-        });
-      });
-      occurrenceForm.addEventListener("invalid",event=>{
-        if (occurrenceForm.dataset.openingInvalidStage) return;
-        const stage=event.target.closest(".trade-stage");
-        if (!stage) return;
-        occurrenceForm.dataset.openingInvalidStage="true";
-        openOccurrenceStage(occurrenceStages.indexOf(stage),true);
-        setTimeout(()=>delete occurrenceForm.dataset.openingInvalidStage,0);
-      },true);
       occurrenceForm.addEventListener("change",event => {
-        syncMethodologyFields(occurrenceForm,event.target.name);
         if (event.target.type === "file") renderOccurrenceCapturePreview(event.target);
-        updateBacktestResultLock();
-        updateOccurrenceWorkflow();
       });
-      occurrenceForm.addEventListener("input",updateOccurrenceWorkflow);
-      openOccurrenceStage(0);
-      updateOccurrenceWorkflow();
       occurrenceForm.addEventListener("submit",async event => {
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         try {
-          const [a,b,c,d] = await Promise.all(["A","B","C","D"].map(stage => readOriginalImage(form.get(`stageScreenshot${stage}`))));
+          const captureFile = name => { const file = form.get(name); return file && file.size>0 ? file : null; };
+          const [a,b,c,d] = await Promise.all(["A","B","C","D"].map(stage => {
+            const file = captureFile(`stageScreenshot${stage}`);
+            return file ? readOriginalImage(file) : Promise.resolve(null);
+          }));
           const criteria_checklist = {
-            sweep:form.get("sweep")==="true",
-            mss:form.get("mss")==="true",
-            displacement:form.get("displacement")==="true",
-            fvg:form.get("fvg")==="true",
-            plan:form.get("plan")==="true"
+            sweep:occurrenceForm.elements.sweep.checked,
+            mss:occurrenceForm.elements.mss.checked,
+            displacement:occurrenceForm.elements.displacement.checked,
+            fvg:occurrenceForm.elements.fvg.checked,
+            plan:occurrenceForm.elements.plan.checked
           };
           occurrences.push({
             id:Date.now(),
@@ -30924,12 +30803,10 @@
             session:form.get("session"),
             methodology:{
               biasHtf:form.get("biasHtf"),
-              drawOnLiquidity:form.get("drawOnLiquidity"),
-              sweep:form.get("stageSweep")==="true",
-              fvgUntested:form.get("fvgUntested")==="true",
-              mss:form.get("stageMss")==="true",
-              displacement:form.get("stageDisplacement")==="true",
-              fvgEntry:form.get("stageFvg")==="true",
+              sweep:criteria_checklist.sweep,
+              mss:criteria_checklist.mss,
+              displacement:criteria_checklist.displacement,
+              fvgEntry:criteria_checklist.fvg,
               fvgTimeframe:form.get("fvgTimeframe")
             },
             criteria_checklist,
@@ -30945,9 +30822,6 @@
           event.currentTarget.reset();
           event.currentTarget.querySelectorAll('input[type="file"]').forEach(renderOccurrenceCapturePreview);
           renderConceptPicker(document.querySelector('[data-concept-picker="backtest"]'),false);
-          event.currentTarget.elements.result.disabled = true;
-          openOccurrenceStage(0);
-          updateOccurrenceWorkflow();
           closeOccurrenceModal();
           renderBacktest(); renderProfile(); renderConceptLibrary();
           toast("Occurrence enregistrée");
@@ -31296,7 +31170,6 @@
           if (input) {
             input.value = "";
             renderOccurrenceCapturePreview(input);
-            updateOccurrenceWorkflow();
           }
           return;
         }
